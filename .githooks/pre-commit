@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+
+pnpm clean:coverage
+
+# Coverage output must not survive in the index if it was force-added earlier.
+git rm -r --cached --ignore-unmatch -- \
+  ':(glob)coverage/**' \
+  ':(glob)**/coverage/**' >/dev/null 2>&1 || true

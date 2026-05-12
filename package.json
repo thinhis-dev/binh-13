@@ -6,7 +6,11 @@
     "build": "pnpm --filter @binh-13/shared build && pnpm --parallel --filter @binh-13/server --filter @binh-13/web build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "lint": "pnpm -r lint"
+    "test:coverage": "pnpm -r test:coverage",
+    "lint": "pnpm -r lint",
+    "clean:coverage": "node scripts/clean-coverage.mjs",
+    "hooks:install": "node scripts/install-git-hooks.mjs",
+    "prepare": "pnpm hooks:install"
   },
   "devDependencies": {
     "typescript": "^5.8.3"

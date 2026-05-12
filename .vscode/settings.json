@@ -1,5 +1,11 @@
 {
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
-  "js/ts.tsdk.path": "node_modules/typescript/lib"
+  "js/ts.tsdk.path": "node_modules/typescript/lib",
+  "chat.tools.terminal.autoApprove": {
+    "/^pnpm -r test:coverage 2>&1$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  }
 }

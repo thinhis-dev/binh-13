@@ -16,6 +16,7 @@ import {
   getSessionBySocketId,
   updateSocketId,
 } from '../session/sessionManager'
+import { createChildLogger } from '../lib/logger'
 
 const roomCodeSchema = z
   .string()
@@ -43,17 +44,21 @@ type EventPayload<T extends z.ZodTypeAny> = z.infer<T>
 
 export function registerRoomEvents(io: Server): void {
   io.on('connection', (socket) => {
-    console.log('Client connected:', socket.id)
+    const log = createChildLogger({ socketId: socket.id })
+    log.info('Client connected')
 
     socket.on(EVENTS.SESSION_CREATE, (payload) => {
+      log.debug({ event: EVENTS.SESSION_CREATE }, 'Socket event received')
       const data = parsePayload(socket, sessionCreateSchema, payload)
       if (!data) return
 
       const playerId = createSession(data.name, socket.id)
       socket.emit(EVENTS.SESSION_CREATED, { playerId, name: data.name })
+      log.info({ playerId, event: EVENTS.SESSION_CREATE }, 'Session created')
     })
 
     socket.on(EVENTS.ROOM_CREATE, (payload) => {
+      log.debug({ event: EVENTS.ROOM_CREATE }, 'Socket event received')
       const data = parsePayload(socket, playerSchema, payload)
       if (!data || !assertSession(socket, data.playerId)) return
 
@@ -63,15 +68,18 @@ export function registerRoomEvents(io: Server): void {
 
       socket.emit(EVENTS.ROOM_CREATED, { code })
       emitRoomState(io, code)
+      log.info({ playerId: data.playerId, roomCode: code }, 'Room created')
     })
 
     socket.on(EVENTS.ROOM_JOIN, (payload) => {
+      log.debug({ event: EVENTS.ROOM_JOIN }, 'Socket event received')
       const data = parsePayload(socket, roomActionSchema, payload)
       if (!data || !assertSession(socket, data.playerId)) return
 
       updateSocketId(data.playerId, socket.id)
       const joined = joinRoom(data.code, data.playerId)
       if (!joined) {
+        log.warn({ playerId: data.playerId, roomCode: data.code }, 'Room join rejected')
         emitError(socket, 'Room not found or already full')
         return
       }
@@ -79,14 +87,17 @@ export function registerRoomEvents(io: Server): void {
       socket.join(data.code)
       socket.emit(EVENTS.ROOM_JOINED, { code: data.code })
       emitRoomState(io, data.code)
+      log.info({ playerId: data.playerId, roomCode: data.code }, 'Room joined')
     })
 
     socket.on(EVENTS.ROOM_LEAVE, (payload) => {
+      log.debug({ event: EVENTS.ROOM_LEAVE }, 'Socket event received')
       const data = parsePayload(socket, roomActionSchema, payload)
       if (!data || !assertSession(socket, data.playerId)) return
 
       const room = getRoom(data.code)
       if (!room || !isPlayerInRoom(room, data.playerId)) {
+        log.warn({ playerId: data.playerId, roomCode: data.code }, 'Room leave rejected')
         emitError(socket, 'Player is not in this room')
         return
       }
@@ -97,15 +108,18 @@ export function registerRoomEvents(io: Server): void {
 
       const updatedRoom = getRoom(data.code)
       if (updatedRoom) emitRoomState(io, data.code)
+      log.info({ playerId: data.playerId, roomCode: data.code }, 'Room left')
     })
 
     socket.on(EVENTS.ROOM_MESSAGE, (payload) => {
+      log.debug({ event: EVENTS.ROOM_MESSAGE }, 'Socket event received')
       const data = parsePayload(socket, roomMessageSchema, payload)
       if (!data || !assertSession(socket, data.playerId)) return
 
       const room = getRoom(data.code)
       const player = room?.players.find((candidate) => candidate.playerId === data.playerId)
       if (!room || !player) {
+        log.warn({ playerId: data.playerId, roomCode: data.code }, 'Room message rejected')
         emitError(socket, 'Player is not in this room')
         return
       }
@@ -116,19 +130,23 @@ export function registerRoomEvents(io: Server): void {
         text: data.text,
         at: Date.now(),
       })
+      log.info({ playerId: data.playerId, roomCode: data.code }, 'Room message broadcast')
     })
 
     socket.on(EVENTS.ROOM_CLEAR, (payload) => {
+      log.debug({ event: EVENTS.ROOM_CLEAR }, 'Socket event received')
       const data = parsePayload(socket, roomActionSchema, payload)
       if (!data || !assertSession(socket, data.playerId)) return
 
       const room = getRoom(data.code)
       if (!room) {
+        log.warn({ playerId: data.playerId, roomCode: data.code }, 'Room clear rejected: missing room')
         emitError(socket, 'Room not found')
         return
       }
 
       if (room.createdBy !== data.playerId) {
+        log.warn({ playerId: data.playerId, roomCode: data.code }, 'Room clear rejected: non-creator')
         emitError(socket, 'Only the room creator can clear this room')
         return
       }
@@ -136,10 +154,11 @@ export function registerRoomEvents(io: Server): void {
       io.to(data.code).emit(EVENTS.ROOM_CLEARED, { code: data.code })
       clearRoom(data.code)
       leaveSocketRoom(io, data.code)
+      log.info({ playerId: data.playerId, roomCode: data.code }, 'Room cleared')
     })
 
     socket.on('disconnect', () => {
-      console.log('Client disconnected:', socket.id)
+      log.info('Client disconnected')
       handleDisconnect(io, socket)
     })
   })
@@ -153,6 +172,10 @@ function parsePayload<T extends z.ZodTypeAny>(
   const result = schema.safeParse(payload)
   if (result.success) return result.data
 
+  createChildLogger({ socketId: socket.id }).warn(
+    { issues: result.error.issues },
+    'Socket payload rejected',
+  )
   emitError(socket, result.error.issues[0]?.message ?? 'Invalid payload')
   return undefined
 }
@@ -160,6 +183,7 @@ function parsePayload<T extends z.ZodTypeAny>(
 function assertSession(socket: Socket, playerId: number): boolean {
   if (getSession(playerId)) return true
 
+  createChildLogger({ socketId: socket.id }).warn({ playerId }, 'Session lookup rejected')
   emitError(socket, 'Session not found')
   return false
 }

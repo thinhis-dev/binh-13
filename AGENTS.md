@@ -99,3 +99,14 @@ See [PLAN.md § 2 Game Rules](./PLAN.md#2-game-rules-full-spec) and [§ 3 Card C
 - Room codes are validated as 6-character alphanumeric before any SQLite query
 - All rows in `rooms` and `sessions` tables must have an `expires_at` value — run stale cleanup on server start and on a periodic interval
 - Never emit another player's hand cards — only their count and submitted status
+
+## Testing & Coverage Rules
+
+- All new logic in functions, event handlers, stores, and helpers must ship with co-located tests in the same change.
+- New socket events and database-backed workflows need integration coverage in `*.integration.test.ts` files.
+- Run `pnpm test` before marking work complete. Run `pnpm test:coverage` when coverage-gated areas change.
+- Never commit failing tests.
+- Never use `test.skip` without a `// TODO:` comment explaining why and how it will be removed.
+- Unit tests live in sibling `__tests__/` folders.
+- Integration tests use the suffix `.integration.test.ts`.
+- Integration tests use in-memory SQLite and a real Socket.io server on port `0`; do not mock the database or transport there.

@@ -1,4 +1,5 @@
 import { getDb } from '../db'
+import { logger } from '../lib/logger'
 
 type SessionRow = {
   player_id: number
@@ -22,13 +23,16 @@ export function createSession(name: string, socketId: string): number {
     )
     .run(name, socketId, Date.now())
 
-  return Number(result.lastInsertRowid)
+  const playerId = Number(result.lastInsertRowid)
+  logger.debug({ playerId, socketId }, 'Session created')
+  return playerId
 }
 
 export function updateSocketId(playerId: number, socketId: string): void {
   getDb()
     .prepare('UPDATE sessions SET socket_id = ? WHERE player_id = ?')
     .run(socketId, playerId)
+  logger.debug({ playerId, socketId }, 'Session socket updated')
 }
 
 export function getSession(playerId: number): Session | undefined {
@@ -36,7 +40,9 @@ export function getSession(playerId: number): Session | undefined {
     .prepare('SELECT player_id, name, socket_id FROM sessions WHERE player_id = ?')
     .get(playerId) as SessionRow | undefined
 
-  return row ? mapSession(row) : undefined
+  const session = row ? mapSession(row) : undefined
+  logger.debug({ playerId, found: Boolean(session) }, 'Session lookup')
+  return session
 }
 
 export function getSessionBySocketId(
@@ -46,12 +52,15 @@ export function getSessionBySocketId(
     .prepare('SELECT player_id, name, socket_id FROM sessions WHERE socket_id = ?')
     .get(socketId) as SessionRow | undefined
 
-  return row
+  const session = row
     ? {
         playerId: row.player_id,
         name: row.name,
       }
     : undefined
+
+  logger.debug({ socketId, found: Boolean(session) }, 'Session socket lookup')
+  return session
 }
 
 function mapSession(row: SessionRow): Session {

@@ -1,5 +1,6 @@
 import type { Room } from '@binh-13/shared'
 import { getDb } from '../db'
+import { logger } from '../lib/logger'
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const ROOM_CODE_LENGTH = 6
@@ -52,6 +53,7 @@ export function createRoom(createdBy: number): string {
   })
 
   create()
+  logger.debug({ code, createdBy }, 'Room created')
   return code
 }
 
@@ -60,7 +62,10 @@ export function joinRoom(code: string, playerId: number): boolean {
   const normalizedCode = normalizeCode(code)
   const room = getRoom(normalizedCode)
 
-  if (!room) return false
+  if (!room) {
+    logger.debug({ code: normalizedCode, playerId }, 'Room join rejected: missing room')
+    return false
+  }
 
   const existingPlayer = room.players.find((player) => player.playerId === playerId)
   if (existingPlayer) {
@@ -71,10 +76,14 @@ export function joinRoom(code: string, playerId: number): boolean {
       WHERE room_code = ? AND player_id = ?
     `,
     ).run(normalizedCode, playerId)
+    logger.debug({ code: normalizedCode, playerId }, 'Room player reconnected')
     return true
   }
 
-  if (room.players.length >= 2) return false
+  if (room.players.length >= 2) {
+    logger.debug({ code: normalizedCode, playerId }, 'Room join rejected: room full')
+    return false
+  }
 
   const seat = room.players.some((player) => player.seat === 1) ? 2 : 1
 
@@ -85,6 +94,7 @@ export function joinRoom(code: string, playerId: number): boolean {
   `,
   ).run(normalizedCode, playerId, seat)
 
+  logger.debug({ code: normalizedCode, playerId, seat }, 'Room player joined')
   return true
 }
 
@@ -99,6 +109,7 @@ export function leaveRoom(code: string, playerId: number): void {
     WHERE room_code = ? AND player_id = ?
   `,
   ).run(normalizedCode, playerId)
+  logger.debug({ code: normalizedCode, playerId }, 'Room player marked disconnected')
 
   const connectedCount = db
     .prepare(
@@ -116,7 +127,9 @@ export function leaveRoom(code: string, playerId: number): void {
 }
 
 export function clearRoom(code: string): void {
-  getDb().prepare('DELETE FROM rooms WHERE code = ?').run(normalizeCode(code))
+  const normalizedCode = normalizeCode(code)
+  getDb().prepare('DELETE FROM rooms WHERE code = ?').run(normalizedCode)
+  logger.debug({ code: normalizedCode }, 'Room cleared')
 }
 
 export function getRoom(code: string): RoomState | undefined {
@@ -126,7 +139,10 @@ export function getRoom(code: string): RoomState | undefined {
     .prepare('SELECT code, status, created_by, created_at FROM rooms WHERE code = ?')
     .get(normalizedCode) as RoomRow | undefined
 
-  if (!room) return undefined
+  if (!room) {
+    logger.debug({ code: normalizedCode }, 'Room lookup missed')
+    return undefined
+  }
 
   const players = db
     .prepare(
@@ -140,7 +156,7 @@ export function getRoom(code: string): RoomState | undefined {
     )
     .all(normalizedCode) as PlayerRow[]
 
-  return {
+  const roomState = {
     code: room.code,
     status: room.status,
     createdBy: room.created_by,
@@ -151,6 +167,9 @@ export function getRoom(code: string): RoomState | undefined {
       connected: player.connected === 1,
     })),
   }
+
+  logger.debug({ code: normalizedCode, players: roomState.players.length }, 'Room lookup hit')
+  return roomState
 }
 
 export function getRoomByPlayer(playerId: number): RoomState | undefined {
@@ -166,7 +185,9 @@ export function getRoomByPlayer(playerId: number): RoomState | undefined {
     )
     .get(playerId) as { room_code: string } | undefined
 
-  return row ? getRoom(row.room_code) : undefined
+  const room = row ? getRoom(row.room_code) : undefined
+  logger.debug({ playerId, found: Boolean(room) }, 'Room lookup by player')
+  return room
 }
 
 export function toPublicRoom(room: RoomState): Room {

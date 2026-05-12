@@ -1,21 +1,33 @@
 import Database from 'better-sqlite3'
 import path from 'node:path'
+import { logger } from './lib/logger'
 
 let _db: Database.Database | null = null
 
 export function initDb(): Database.Database {
   const dbPath = process.env.DATABASE_PATH ?? './dev.db'
-  _db = new Database(path.resolve(dbPath))
+  closeDb()
+
+  _db = new Database(dbPath === ':memory:' ? dbPath : path.resolve(dbPath))
   _db.pragma('journal_mode = WAL')
   _db.pragma('foreign_keys = ON')
   runMigrations(_db)
-  console.log(`Database initialized: ${dbPath}`)
+  logger.info({ dbPath }, 'Database initialized')
   return _db
 }
 
 export function getDb(): Database.Database {
   if (!_db) throw new Error('Database not initialized. Call initDb() first.')
   return _db
+}
+
+export function resetDb(): void {
+  runMigrations(getDb())
+}
+
+export function closeDb(): void {
+  _db?.close()
+  _db = null
 }
 
 function runMigrations(db: Database.Database): void {

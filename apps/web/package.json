@@ -6,7 +6,10 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@binh-13/shared": "workspace:*",
@@ -24,11 +27,17 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/coverage-v8": "^3.2.4",
+    "jsdom": "^29.1.1",
     "tailwindcss": "^4.1.4",
     "typescript": "^5.8.3",
-    "vite": "^6.3.3"
+    "vite": "^6.3.3",
+    "vitest": "^3.2.4"
   }
 }
