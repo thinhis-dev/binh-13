@@ -25,8 +25,9 @@ export type Card = {
 
 // Player (safe public view — never includes hand cards of opponents)
 export type Player = {
-  id: string
+  id: number
   name: string
+  seat: 1 | 2
   connected: boolean
 }
 
@@ -36,21 +37,34 @@ export type GameMode =
   | { type: 'best_of'; rounds: 3 | 5 | 7 }
   | { type: 'custom'; roundCount: number }
 
-export type RoomStatus = 'waiting' | 'arranging' | 'locked' | 'finished'
+export type RoomStatus =
+  | 'waiting'
+  | 'playing'
+  | 'arranging'
+  | 'locked'
+  | 'finished'
 
 export type Room = {
   code: string
   status: RoomStatus
+  createdBy: number
   players: Player[]
-  mode: GameMode
-  currentRound: number
-  createdAt: number
-  expiresAt: number
+  mode?: GameMode
+  currentRound?: number
+  createdAt?: number
+  expiresAt?: number
+}
+
+export type RoomMessage = {
+  playerId: number
+  name: string
+  text: string
+  at: number
 }
 
 // Each player submits this after arranging their 13 cards
 export type PlayerArrangement = {
-  playerId: string
+  playerId: number
   group1: [Card, Card, Card, Card, Card] // Back — must be strongest (poker)
   group2: [Card, Card, Card, Card, Card] // Middle (poker)
   group3: [Card, Card, Card] // Front (simplified: trips > pair > high)

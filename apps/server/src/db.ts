@@ -20,42 +20,31 @@ export function getDb(): Database.Database {
 
 function runMigrations(db: Database.Database): void {
   db.exec(`
+    DROP TABLE IF EXISTS arrangements;
+    DROP TABLE IF EXISTS hands;
+    DROP TABLE IF EXISTS room_players;
+    DROP TABLE IF EXISTS rooms;
+    DROP TABLE IF EXISTS sessions;
+
     CREATE TABLE IF NOT EXISTS sessions (
-      player_id  TEXT PRIMARY KEY,
-      name       TEXT NOT NULL,
-      token_hash TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      expires_at INTEGER NOT NULL
+      player_id  INTEGER PRIMARY KEY AUTOINCREMENT,
+      name       TEXT    NOT NULL,
+      socket_id  TEXT    NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS rooms (
-      code          TEXT PRIMARY KEY,
-      status        TEXT NOT NULL DEFAULT 'waiting',
-      mode_json     TEXT NOT NULL DEFAULT '{"type":"single"}',
-      current_round INTEGER NOT NULL DEFAULT 1,
-      created_at    INTEGER NOT NULL,
-      expires_at    INTEGER NOT NULL
+      code       TEXT    PRIMARY KEY,
+      status     TEXT    NOT NULL DEFAULT 'waiting',
+      created_by INTEGER NOT NULL REFERENCES sessions(player_id),
+      created_at INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS room_players (
-      room_code TEXT NOT NULL REFERENCES rooms(code) ON DELETE CASCADE,
-      player_id TEXT NOT NULL REFERENCES sessions(player_id),
+      room_code TEXT    NOT NULL REFERENCES rooms(code) ON DELETE CASCADE,
+      player_id INTEGER NOT NULL REFERENCES sessions(player_id),
+      seat      INTEGER NOT NULL,
       connected INTEGER NOT NULL DEFAULT 1,
-      PRIMARY KEY (room_code, player_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS hands (
-      room_code  TEXT NOT NULL,
-      player_id  TEXT NOT NULL,
-      cards_json TEXT NOT NULL,
-      PRIMARY KEY (room_code, player_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS arrangements (
-      room_code        TEXT NOT NULL,
-      player_id        TEXT NOT NULL,
-      arrangement_json TEXT NOT NULL,
-      submitted_at     INTEGER NOT NULL,
       PRIMARY KEY (room_code, player_id)
     );
   `)

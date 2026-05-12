@@ -2,10 +2,11 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 type SessionState = {
-  playerId: string | null
-  token: string | null
+  playerId: number | null
   name: string | null
-  setSession: (playerId: string, token: string, name: string) => void
+  roomCode: string | null
+  setSession: (playerId: number, name: string) => void
+  setRoom: (code: string | null) => void
   clearSession: () => void
 }
 
@@ -13,10 +14,11 @@ export const useSessionStore = create<SessionState>()(
   persist(
     (set) => ({
       playerId: null,
-      token: null,
       name: null,
-      setSession: (playerId, token, name) => set({ playerId, token, name }),
-      clearSession: () => set({ playerId: null, token: null, name: null }),
+      roomCode: null,
+      setSession: (playerId, name) => set({ playerId, name }),
+      setRoom: (roomCode) => set({ roomCode }),
+      clearSession: () => set({ playerId: null, name: null, roomCode: null }),
     }),
     { name: 'binh13-session' },
   ),

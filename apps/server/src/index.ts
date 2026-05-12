@@ -1,8 +1,9 @@
-import { createAdaptorServer } from '@hono/node-server'
-import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { Hono } from 'hono'
 import { Server as SocketServer } from 'socket.io'
 import { initDb } from './db'
+import { createAdaptorServer } from '@hono/node-server'
+import { registerRoomEvents } from './rooms/roomEvents'
 
 const app = new Hono()
 
@@ -32,15 +33,9 @@ const io = new SocketServer(httpServer, {
     origin: 'http://localhost:5173',
     credentials: true,
   },
-})
+} as ConstructorParameters<typeof SocketServer>[1])
 
-io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id)
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id)
-  })
-})
+registerRoomEvents(io)
 
 const PORT = parseInt(process.env.PORT ?? '8080', 10)
 
