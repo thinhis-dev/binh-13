@@ -5,6 +5,7 @@ import { Server as SocketServer } from 'socket.io'
 import { initDb } from './db'
 import { logger } from './lib/logger'
 import { registerRoomEvents } from './rooms/roomEvents'
+import { registerGameEvents } from './game/gameEvents'
 
 export function createRealtimeServer() {
   const app = new Hono()
@@ -50,6 +51,7 @@ export function createRealtimeServer() {
   } as ConstructorParameters<typeof SocketServer>[1])
 
   registerRoomEvents(io)
+  registerGameEvents(io)
 
   return { app, httpServer, io }
 }

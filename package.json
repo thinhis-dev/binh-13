@@ -14,5 +14,8 @@
   },
   "devDependencies": {
     "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "pokersolver": "^2.1.4"
   }
 }

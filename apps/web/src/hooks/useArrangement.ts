@@ -1,5 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { Card } from '@binh-13/shared'
+import {
+  THREE_CARD_CATEGORY_NAME,
+  evaluateThreeCard,
+  quickFoulCheck,
+} from '@binh-13/shared'
 
 export type GroupKey = 'group1' | 'group2' | 'group3'
 
@@ -128,6 +133,26 @@ export function useArrangement(initialCards?: Card[]) {
     [state.group1.length, state.group2.length, state.group3.length],
   )
 
+  /** Live label for the front (3-card) group, or null if incomplete. */
+  const frontLabel = useMemo(() => {
+    if (state.group3.length !== 3) return null
+    try {
+      const rank = evaluateThreeCard(state.group3)
+      return THREE_CARD_CATEGORY_NAME[rank.category]
+    } catch {
+      return null
+    }
+  }, [state.group3])
+
+  /**
+   * True if a foul is DEFINITELY detected (group2 category > group1 category).
+   * False when inconclusive — server performs the authoritative check.
+   */
+  const hasFoulWarning = useMemo(
+    () => !quickFoulCheck(state.group1, state.group2),
+    [state.group1, state.group2],
+  )
+
   return {
     ...state,
     init,
@@ -136,5 +161,7 @@ export function useArrangement(initialCards?: Card[]) {
     removeFromGroup,
     moveToGroup,
     isComplete,
+    frontLabel,
+    hasFoulWarning,
   }
 }

@@ -17,6 +17,9 @@ import { HandArea } from '@/components/game/HandArea'
 import { OpponentArea } from '@/components/game/OpponentArea'
 import { type GroupKey, useArrangement } from '@/hooks/useArrangement'
 import { type DragData, isDragSource } from '@/lib/dnd'
+import { useGameStore } from '@/stores/gameStore'
+import { useSessionStore } from '@/stores/sessionStore'
+import { useSocket } from '@/hooks/useSocket'
 
 type GameBoardProps = {
   initialCards: CardType[]
@@ -33,6 +36,15 @@ export function GameBoard({ initialCards }: GameBoardProps) {
     }),
     useSensor(KeyboardSensor),
   )
+
+  const timerSeconds = useGameStore((s) => s.timerSeconds)
+  const submitted = useGameStore((s) => s.submitted)
+  const setSubmitted = useGameStore((s) => s.setSubmitted)
+  const opponentSubmitted = useGameStore((s) => s.opponentSubmitted)
+  const roomCode = useSessionStore((s) => s.roomCode)
+  const playerId = useSessionStore((s) => s.playerId)
+  const { submitArrangement } = useSocket()
+
   const {
     hand,
     group1,
@@ -44,6 +56,8 @@ export function GameBoard({ initialCards }: GameBoardProps) {
     removeFromGroup,
     moveToGroup,
     isComplete,
+    frontLabel,
+    hasFoulWarning,
   } = useArrangement(initialCards)
 
   const selectedCard = hand.find((card) => card.id === selectedCardId) ?? null
@@ -125,8 +139,27 @@ export function GameBoard({ initialCards }: GameBoardProps) {
   }, [])
 
   const handleSubmit = useCallback(() => {
-    console.log({ group1, group2, group3 })
-  }, [group1, group2, group3])
+    if (!isComplete || !playerId || !roomCode || submitted) return
+    submitArrangement(playerId, roomCode, { group1, group2, group3 })
+    setSubmitted(true)
+  }, [
+    isComplete,
+    playerId,
+    roomCode,
+    submitted,
+    setSubmitted,
+    submitArrangement,
+    group1,
+    group2,
+    group3,
+  ])
+
+  const timerColor =
+    timerSeconds <= 10
+      ? 'text-red-500 animate-pulse'
+      : timerSeconds <= 30
+        ? 'text-yellow-500'
+        : 'text-muted-foreground'
 
   return (
     <DndContext
@@ -137,7 +170,20 @@ export function GameBoard({ initialCards }: GameBoardProps) {
       onDragCancel={handleDragCancel}
     >
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-4 p-4 sm:p-6">
-        <OpponentArea />
+        <header className="flex items-center justify-between">
+          <OpponentArea opponentSubmitted={opponentSubmitted} />
+          {timerSeconds > 0 && (
+            <span className={`text-lg font-mono font-semibold ${timerColor}`}>
+              ⏱ {timerSeconds}s
+            </span>
+          )}
+        </header>
+
+        {hasFoulWarning && (
+          <div className="rounded border border-yellow-500 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+            ⚠ Possible foul: Middle group may be stronger than Back group
+          </div>
+        )}
 
         <main className="flex flex-1 flex-col gap-4 lg:flex-row">
           <div className="min-w-0 flex-1">
@@ -159,14 +205,20 @@ export function GameBoard({ initialCards }: GameBoardProps) {
               group2: overGroupKey === 'group2',
               group3: overGroupKey === 'group3',
             }}
+            frontLabel={frontLabel}
           />
         </main>
 
-        <footer className="flex justify-center border-t pt-4">
+        <footer className="flex items-center justify-center gap-4 border-t pt-4">
+          {submitted && (
+            <span className="text-sm text-muted-foreground">
+              Arrangement submitted — waiting for opponent…
+            </span>
+          )}
           <Button
             type="button"
             size="lg"
-            disabled={!isComplete}
+            disabled={!isComplete || submitted || hasFoulWarning}
             onClick={handleSubmit}
           >
             Submit Arrangement

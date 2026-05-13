@@ -63,11 +63,16 @@ export function joinRoom(code: string, playerId: number): boolean {
   const room = getRoom(normalizedCode)
 
   if (!room) {
-    logger.debug({ code: normalizedCode, playerId }, 'Room join rejected: missing room')
+    logger.debug(
+      { code: normalizedCode, playerId },
+      'Room join rejected: missing room',
+    )
     return false
   }
 
-  const existingPlayer = room.players.find((player) => player.playerId === playerId)
+  const existingPlayer = room.players.find(
+    (player) => player.playerId === playerId,
+  )
   if (existingPlayer) {
     db.prepare(
       `
@@ -81,7 +86,10 @@ export function joinRoom(code: string, playerId: number): boolean {
   }
 
   if (room.players.length >= 2) {
-    logger.debug({ code: normalizedCode, playerId }, 'Room join rejected: room full')
+    logger.debug(
+      { code: normalizedCode, playerId },
+      'Room join rejected: room full',
+    )
     return false
   }
 
@@ -109,7 +117,10 @@ export function leaveRoom(code: string, playerId: number): void {
     WHERE room_code = ? AND player_id = ?
   `,
   ).run(normalizedCode, playerId)
-  logger.debug({ code: normalizedCode, playerId }, 'Room player marked disconnected')
+  logger.debug(
+    { code: normalizedCode, playerId },
+    'Room player marked disconnected',
+  )
 
   const connectedCount = db
     .prepare(
@@ -132,11 +143,21 @@ export function clearRoom(code: string): void {
   logger.debug({ code: normalizedCode }, 'Room cleared')
 }
 
+export function updateRoomStatus(code: string, status: string): void {
+  const normalizedCode = normalizeCode(code)
+  getDb()
+    .prepare('UPDATE rooms SET status = ? WHERE code = ?')
+    .run(status, normalizedCode)
+  logger.debug({ code: normalizedCode, status }, 'Room status updated')
+}
+
 export function getRoom(code: string): RoomState | undefined {
   const db = getDb()
   const normalizedCode = normalizeCode(code)
   const room = db
-    .prepare('SELECT code, status, created_by, created_at FROM rooms WHERE code = ?')
+    .prepare(
+      'SELECT code, status, created_by, created_at FROM rooms WHERE code = ?',
+    )
     .get(normalizedCode) as RoomRow | undefined
 
   if (!room) {
@@ -168,7 +189,10 @@ export function getRoom(code: string): RoomState | undefined {
     })),
   }
 
-  logger.debug({ code: normalizedCode, players: roomState.players.length }, 'Room lookup hit')
+  logger.debug(
+    { code: normalizedCode, players: roomState.players.length },
+    'Room lookup hit',
+  )
   return roomState
 }
 

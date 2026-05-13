@@ -11,6 +11,7 @@ type GroupPanelProps = {
   onSlotClick: (groupKey: GroupKey) => void
   onCardClick: (groupKey: GroupKey, card: CardType) => void
   isOver?: Partial<Record<GroupKey, boolean>>
+  frontLabel?: string | null
 }
 
 function GroupPanelComponent({
@@ -21,6 +22,7 @@ function GroupPanelComponent({
   onSlotClick,
   onCardClick,
   isOver,
+  frontLabel,
 }: GroupPanelProps) {
   return (
     <aside className="flex w-full flex-col gap-3 lg:w-[28rem]">
@@ -46,7 +48,7 @@ function GroupPanelComponent({
       />
       <GroupSlot
         groupKey="group3"
-        label="Front (3)"
+        label={frontLabel ? `Front (3) — ${frontLabel}` : 'Front (3)'}
         capacity={3}
         cards={group3}
         onSlotClick={() => onSlotClick('group3')}

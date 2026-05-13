@@ -46,10 +46,11 @@ function runMigrations(db: Database.Database): void {
     );
 
     CREATE TABLE IF NOT EXISTS rooms (
-      code       TEXT    PRIMARY KEY,
-      status     TEXT    NOT NULL DEFAULT 'waiting',
-      created_by INTEGER NOT NULL REFERENCES sessions(player_id),
-      created_at INTEGER NOT NULL
+      code          TEXT    PRIMARY KEY,
+      status        TEXT    NOT NULL DEFAULT 'waiting',
+      created_by    INTEGER NOT NULL REFERENCES sessions(player_id),
+      created_at    INTEGER NOT NULL,
+      current_round INTEGER NOT NULL DEFAULT 1
     );
 
     CREATE TABLE IF NOT EXISTS room_players (
@@ -57,6 +58,21 @@ function runMigrations(db: Database.Database): void {
       player_id INTEGER NOT NULL REFERENCES sessions(player_id),
       seat      INTEGER NOT NULL,
       connected INTEGER NOT NULL DEFAULT 1,
+      PRIMARY KEY (room_code, player_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS hands (
+      room_code  TEXT    NOT NULL REFERENCES rooms(code) ON DELETE CASCADE,
+      player_id  INTEGER NOT NULL REFERENCES sessions(player_id),
+      cards_json TEXT    NOT NULL,
+      PRIMARY KEY (room_code, player_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS arrangements (
+      room_code        TEXT    NOT NULL REFERENCES rooms(code) ON DELETE CASCADE,
+      player_id        INTEGER NOT NULL REFERENCES sessions(player_id),
+      arrangement_json TEXT    NOT NULL,
+      submitted_at     INTEGER NOT NULL,
       PRIMARY KEY (room_code, player_id)
     );
   `)

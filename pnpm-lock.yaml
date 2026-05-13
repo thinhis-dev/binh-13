@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      pokersolver:
+        specifier: ^2.1.4
+        version: 2.1.4
     devDependencies:
       typescript:
         specifier: ^5.8.3
@@ -32,6 +36,9 @@ importers:
       pino:
         specifier: ^10.3.1
         version: 10.3.1
+      pokersolver:
+        specifier: ^2.1.4
+        version: 2.1.4
       socket.io:
         specifier: ^4.8.1
         version: 4.8.3
@@ -1771,6 +1778,10 @@ packages:
   pino@10.3.1:
     resolution: {integrity: sha512-r34yH/GlQpKZbU1BvFFqOjhISRo1MNx1tWYsYvmj6KIRHSPMT2+yHOEb1SG6NMvRoHRF0a07kCOox/9yakl1vg==}
     hasBin: true
+
+  pokersolver@2.1.4:
+    resolution: {integrity: sha512-vmgZS+K8H8r1RePQykFM5YyvlKo1v3xVec8FMBjg9N6mR2Tj/n/X415w+lG67FWbrk71D/CADmKFinDgaQlAsw==}
+    engines: {'0': node >= 4.0.0}
 
   postcss@8.5.14:
     resolution: {integrity: sha512-SoSL4+OSEtR99LHFZQiJLkT59C5B1amGO1NzTwj7TT1qCUgUO6hxOvzkOYxD+vMrXBM3XJIKzokoERdqQq/Zmg==}
@@ -3653,6 +3664,8 @@ snapshots:
       safe-stable-stringify: 2.5.0
       sonic-boom: 4.2.1
       thread-stream: 4.1.0
+
+  pokersolver@2.1.4: {}
 
   postcss@8.5.14:
     dependencies:

@@ -43,4 +43,19 @@ describe('gameStore', () => {
       timerSeconds: 0,
     })
   })
+
+  it('tracks opponentSubmitted and submitted flags', () => {
+    expect(useGameStore.getState().opponentSubmitted).toBe(false)
+    expect(useGameStore.getState().submitted).toBe(false)
+
+    useGameStore.getState().setOpponentSubmitted(true)
+    expect(useGameStore.getState().opponentSubmitted).toBe(true)
+
+    useGameStore.getState().setSubmitted(true)
+    expect(useGameStore.getState().submitted).toBe(true)
+
+    useGameStore.getState().reset()
+    expect(useGameStore.getState().opponentSubmitted).toBe(false)
+    expect(useGameStore.getState().submitted).toBe(false)
+  })
 })
