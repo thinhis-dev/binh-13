@@ -21,8 +21,7 @@ export default defineConfig({
         'src/lib/cards.ts',
         'src/lib/utils.ts',
         'src/hooks/useSocket.ts',
-        // TODO Phase 2: add 'src/hooks/useArrangement.ts' once dnd-kit
-        // drag-drop state and live foul evaluation are implemented.
+        'src/hooks/useArrangement.ts',
       ],
       thresholds: {
         lines: 90,

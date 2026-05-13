@@ -6,6 +6,14 @@
     "/^pnpm -r test:coverage 2>&1$/": {
       "approve": true,
       "matchCommandLine": true
+    },
+    "/^Get-NetTCPConnection -LocalPort 8080 -State Listen \\| Select-Object LocalAddress, LocalPort, OwningProcess \\| ForEach-Object \\{ \\$proc = Get-Process -Id \\$_\\.OwningProcess -ErrorAction SilentlyContinue; \\[PSCustomObject\\]@\\{Port=\\$_\\.LocalPort; PID=\\$_\\.OwningProcess; Name=\\$proc\\.Name\\} \\}$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^pnpm --filter web test 2>&1$/": {
+      "approve": true,
+      "matchCommandLine": true
     }
   }
 }

@@ -1,6 +1,6 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { EVENTS, type Room, type RoomMessage } from '@binh-13/shared'
+import { EVENTS, type Card, type Room } from '@binh-13/shared'
 import { Button } from '@/components/ui/button'
 import { useSocket } from '@/hooks/useSocket'
 import { socket } from '@/lib/socket'
@@ -11,15 +11,15 @@ export default function Lobby() {
   const navigate = useNavigate()
   const params = useParams()
   const code = params.code?.toUpperCase() ?? ''
-  const { joinRoom, leaveRoom, clearRoom, sendMessage } = useSocket()
+  const { joinRoom, leaveRoom, clearRoom } = useSocket()
   const playerId = useSessionStore((state) => state.playerId)
   const roomCode = useSessionStore((state) => state.roomCode)
   const setRoomCode = useSessionStore((state) => state.setRoom)
   const room = useGameStore((state) => state.room)
   const setGameRoom = useGameStore((state) => state.setRoom)
+  const setHand = useGameStore((state) => state.setHand)
+  const setTimer = useGameStore((state) => state.setTimer)
   const resetGame = useGameStore((state) => state.reset)
-  const [messages, setMessages] = useState<RoomMessage[]>([])
-  const [messageText, setMessageText] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -38,8 +38,13 @@ export default function Lobby() {
       setError('')
     }
 
-    const handleRoomMessage = (message: RoomMessage) => {
-      setMessages((current) => [...current, message])
+    const handleGameDealt = (payload: {
+      hand: Card[]
+      timerSeconds: number
+    }) => {
+      setHand(payload.hand)
+      setTimer(payload.timerSeconds)
+      navigate(`/room/${code}/game`)
     }
 
     const handleRoomCleared = () => {
@@ -61,33 +66,36 @@ export default function Lobby() {
     }
 
     socket.on(EVENTS.ROOM_STATE, handleRoomState)
-    socket.on(EVENTS.ROOM_MESSAGE, handleRoomMessage)
+    socket.on(EVENTS.GAME_DEALT, handleGameDealt)
     socket.on(EVENTS.ROOM_LEFT, handleRoomLeft)
     socket.on(EVENTS.ROOM_CLEARED, handleRoomCleared)
     socket.on(EVENTS.ERROR, handleError)
 
     return () => {
       socket.off(EVENTS.ROOM_STATE, handleRoomState)
-      socket.off(EVENTS.ROOM_MESSAGE, handleRoomMessage)
+      socket.off(EVENTS.GAME_DEALT, handleGameDealt)
       socket.off(EVENTS.ROOM_LEFT, handleRoomLeft)
       socket.off(EVENTS.ROOM_CLEARED, handleRoomCleared)
       socket.off(EVENTS.ERROR, handleError)
     }
-  }, [navigate, playerId, resetGame, setGameRoom, setRoomCode])
+  }, [
+    navigate,
+    playerId,
+    resetGame,
+    setGameRoom,
+    setHand,
+    setTimer,
+    setRoomCode,
+    code,
+  ])
 
   const seats = useMemo(
-    () => [1, 2].map((seat) => room?.players.find((player) => player.seat === seat)),
+    () =>
+      [1, 2].map((seat) =>
+        room?.players.find((player) => player.seat === seat),
+      ),
     [room],
   )
-
-  function handleSendMessage(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const trimmed = messageText.trim()
-    if (!playerId || !code || !trimmed) return
-
-    sendMessage(playerId, code, trimmed)
-    setMessageText('')
-  }
 
   function handleLeave() {
     if (!playerId || !code) return
@@ -108,6 +116,11 @@ export default function Lobby() {
   }
 
   const isCreator = room?.createdBy === playerId
+  const bothPlayersReady = (room?.players.length ?? 0) >= 2
+
+  function handleStartGamePreview() {
+    navigate(`/room/${code}/game`)
+  }
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -169,35 +182,21 @@ export default function Lobby() {
           })}
         </section>
 
-        <section className="flex min-h-[360px] flex-col rounded-md border bg-card">
-          <div className="border-b px-4 py-3 font-medium">Messages</div>
-          <div className="flex-1 space-y-3 overflow-y-auto p-4">
-            {messages.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No messages yet.</p>
-            ) : (
-              messages.map((message) => (
-                <div key={`${message.playerId}-${message.at}`}>
-                  <div className="text-xs text-muted-foreground">
-                    {message.name} - {new Date(message.at).toLocaleTimeString()}
-                  </div>
-                  <div className="text-sm">{message.text}</div>
-                </div>
-              ))
-            )}
-          </div>
-          <form className="flex gap-2 border-t p-4" onSubmit={handleSendMessage}>
-            <input
-              className="h-10 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              maxLength={200}
-              value={messageText}
-              onChange={(event) => setMessageText(event.target.value)}
-              placeholder="Type a message"
-            />
-            <Button type="submit" disabled={!messageText.trim()}>
-              Send
+        {bothPlayersReady && (
+          <div className="rounded-md border bg-card p-4">
+            <p className="text-sm text-muted-foreground">
+              Both players are in the room. The game will start automatically
+              when the server deals the cards.
+            </p>
+            <Button
+              type="button"
+              className="mt-3 w-full"
+              onClick={handleStartGamePreview}
+            >
+              Preview Game UI
             </Button>
-          </form>
-        </section>
+          </div>
+        )}
       </main>
     </div>
   )
