@@ -56,6 +56,7 @@ export function GameBoard({ initialCards }: GameBoardProps) {
     assignToGroup,
     removeFromGroup,
     moveToGroup,
+    sortHand,
     isComplete,
     frontLabel,
     hasFoulWarning,
@@ -200,6 +201,7 @@ export function GameBoard({ initialCards }: GameBoardProps) {
               cards={hand}
               selectedCardId={selectedCardId}
               onCardClick={handleHandCardClick}
+              onSort={sortHand}
             />
           </div>
           <GroupPanel

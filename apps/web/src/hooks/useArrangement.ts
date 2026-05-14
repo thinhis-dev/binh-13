@@ -5,6 +5,7 @@ import {
   evaluateThreeCard,
   quickFoulCheck,
 } from '@binh-13/shared'
+import { sortCards } from '@/lib/cards'
 
 export type GroupKey = 'group1' | 'group2' | 'group3'
 
@@ -125,6 +126,15 @@ export function useArrangement(initialCards?: Card[]) {
     [],
   )
 
+  /** Sort the hand cards by rank descending then suit descending. Clears selection. */
+  const sortHand = useCallback(() => {
+    setState((current) => ({
+      ...current,
+      hand: sortCards(current.hand),
+      selectedCardId: null,
+    }))
+  }, [])
+
   const isComplete = useMemo(
     () =>
       state.group1.length === GROUP_CAPACITY.group1 &&
@@ -160,6 +170,7 @@ export function useArrangement(initialCards?: Card[]) {
     assignToGroup,
     removeFromGroup,
     moveToGroup,
+    sortHand,
     isComplete,
     frontLabel,
     hasFoulWarning,

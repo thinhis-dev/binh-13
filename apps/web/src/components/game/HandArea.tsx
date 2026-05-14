@@ -8,6 +8,7 @@ type HandAreaProps = {
   cards: CardType[]
   selectedCardId: string | null
   onCardClick: (card: CardType) => void
+  onSort?: () => void
   isOver?: boolean
 }
 
@@ -15,6 +16,7 @@ function HandAreaComponent({
   cards,
   selectedCardId,
   onCardClick,
+  onSort,
   isOver,
 }: HandAreaProps) {
   const { setNodeRef, isOver: droppableIsOver } = useDroppable({ id: 'hand' })
@@ -26,11 +28,21 @@ function HandAreaComponent({
       data-testid="hand-area"
       className={cn(
         'min-w-0 rounded-md border bg-card transition',
-        shouldHighlightDrop && 'border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/50',
+        shouldHighlightDrop &&
+          'border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/50',
       )}
     >
-      <div className="border-b px-4 py-3">
+      <div className="flex items-center justify-between border-b px-4 py-3">
         <h2 className="text-sm font-semibold">Hand</h2>
+        {cards.length > 0 && onSort && (
+          <button
+            type="button"
+            onClick={onSort}
+            className="rounded px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition"
+          >
+            Sort
+          </button>
+        )}
       </div>
       <div className="p-4">
         <div className="flex flex-wrap gap-2">

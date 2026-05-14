@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { Card } from '@binh-13/shared'
 import { MOCK_HAND } from '@/lib/mockCards'
+import { RANK_VALUE } from '@/lib/cards'
 import { useArrangement } from '../useArrangement'
 
 const firstCard = MOCK_HAND[0]
@@ -169,5 +170,83 @@ describe('useArrangement', () => {
 
     expect(result.current.group1).toEqual([MOCK_HAND[5]])
     expect(result.current.group2).toHaveLength(5)
+  })
+
+  describe('sortHand', () => {
+    it('sorts remaining hand cards by rank descending, suit descending', () => {
+      const { result } = renderHook(() => useArrangement(MOCK_HAND))
+
+      act(() => result.current.sortHand())
+
+      const { hand } = result.current
+      // Verify non-increasing rank order using numeric RANK_VALUE
+      for (let i = 1; i < hand.length; i++) {
+        expect(RANK_VALUE[hand[i].rank]).toBeLessThanOrEqual(
+          RANK_VALUE[hand[i - 1].rank],
+        )
+      }
+      // First card should be the ace of spades (highest rank + highest suit)
+      expect(hand[0].id).toBe('AS')
+      // Last card should be 2S (lowest rank in MOCK_HAND)
+      expect(hand[hand.length - 1].id).toBe('2S')
+    })
+
+    it('does not affect cards already in groups', () => {
+      const { result } = renderHook(() => useArrangement(MOCK_HAND))
+
+      // Move some cards to groups
+      act(() => result.current.assignToGroup('group1', MOCK_HAND[2])) // QD
+      act(() => result.current.assignToGroup('group3', MOCK_HAND[5])) // 9H
+
+      act(() => result.current.sortHand())
+
+      expect(result.current.group1).toEqual([MOCK_HAND[2]])
+      expect(result.current.group3).toEqual([MOCK_HAND[5]])
+    })
+
+    it('sorts only the remaining cards when some are in groups', () => {
+      const { result } = renderHook(() => useArrangement(MOCK_HAND))
+
+      // Remove first three cards to groups, leaving 10 in hand
+      act(() => result.current.assignToGroup('group1', MOCK_HAND[0])) // AS
+      act(() => result.current.assignToGroup('group1', MOCK_HAND[1])) // KH
+      act(() => result.current.assignToGroup('group1', MOCK_HAND[2])) // QD
+
+      act(() => result.current.sortHand())
+
+      const { hand } = result.current
+      expect(hand).toHaveLength(10)
+      // Hand should start with the highest remaining card (JC at index 3)
+      expect(hand[0].id).toBe('JC')
+    })
+
+    it('is a no-op when hand is empty (all cards in groups)', () => {
+      const { result } = renderHook(() => useArrangement(MOCK_HAND))
+
+      for (const card of MOCK_HAND.slice(0, 5)) {
+        act(() => result.current.assignToGroup('group1', card))
+      }
+      for (const card of MOCK_HAND.slice(5, 10)) {
+        act(() => result.current.assignToGroup('group2', card))
+      }
+      for (const card of MOCK_HAND.slice(10, 13)) {
+        act(() => result.current.assignToGroup('group3', card))
+      }
+
+      act(() => result.current.sortHand())
+
+      expect(result.current.hand).toHaveLength(0)
+    })
+
+    it('clears selectedCardId when sorting', () => {
+      const { result } = renderHook(() => useArrangement(MOCK_HAND))
+
+      act(() => result.current.selectCard(firstCard.id))
+      expect(result.current.selectedCardId).toBe(firstCard.id)
+
+      act(() => result.current.sortHand())
+
+      expect(result.current.selectedCardId).toBeNull()
+    })
   })
 })
