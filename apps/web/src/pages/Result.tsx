@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import type { GroupComparison } from '@binh-13/shared'
 import { Button } from '@/components/ui/button'
+import { ResultGroupDisplay } from '@/components/game/ResultGroupDisplay'
 import { useGameStore } from '@/stores/gameStore'
 import { useSessionStore } from '@/stores/sessionStore'
 import { useSocket } from '@/hooks/useSocket'
@@ -9,16 +9,6 @@ import { useSocket } from '@/hooks/useSocket'
 type PlayerSide = 'p1' | 'p2'
 
 const GROUP_LABELS = ['Back (5)', 'Middle (5)', 'Front (3)'] as const
-
-function resultIcon(
-  group: GroupComparison,
-  mySide: PlayerSide,
-): { icon: string; color: string } {
-  if (group.result === mySide) return { icon: '✓', color: 'text-green-600' }
-  if (group.result === 'draw')
-    return { icon: '—', color: 'text-muted-foreground' }
-  return { icon: '✗', color: 'text-red-500' }
-}
 
 export default function Result() {
   const navigate = useNavigate()
@@ -58,11 +48,25 @@ export default function Result() {
     )
   }
 
-  const groups: GroupComparison[] = [
-    result.group1,
-    result.group2,
-    result.group3,
-  ]
+  const groups = [result.group1, result.group2, result.group3] as const
+
+  const myArrangement = result.arrangements[mySide]
+  const opponentArrangement = result.arrangements[opponentSide]
+
+  const groupCards = [
+    {
+      myCards: myArrangement.group1,
+      opponentCards: opponentArrangement.group1,
+    },
+    {
+      myCards: myArrangement.group2,
+      opponentCards: opponentArrangement.group2,
+    },
+    {
+      myCards: myArrangement.group3,
+      opponentCards: opponentArrangement.group3,
+    },
+  ] as const
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-lg flex-col items-center justify-center gap-6 p-4">
@@ -106,34 +110,20 @@ export default function Result() {
       </div>
 
       {/* Group-by-group breakdown */}
-      <div className="w-full space-y-2">
+      <div className="w-full space-y-4">
         <h2 className="text-sm font-semibold text-muted-foreground">
           Group Breakdown
         </h2>
-        {groups.map((group, i) => {
-          const { icon, color } = resultIcon(group, mySide)
-          const myHand = mySide === 'p1' ? group.p1Hand : group.p2Hand
-          const theirHand = opponentSide === 'p1' ? group.p1Hand : group.p2Hand
-          return (
-            <div
-              key={i}
-              className="flex items-center justify-between rounded border px-3 py-2"
-            >
-              <div className="flex items-center gap-2">
-                <span className={`font-bold ${color}`}>{icon}</span>
-                <span className="text-sm font-medium">{GROUP_LABELS[i]}</span>
-              </div>
-              <div className="text-right text-xs">
-                <p>
-                  You: <span className="font-medium">{myHand}</span>
-                </p>
-                <p className="text-muted-foreground">
-                  Opp: <span className="font-medium">{theirHand}</span>
-                </p>
-              </div>
-            </div>
-          )
-        })}
+        {groups.map((group, i) => (
+          <ResultGroupDisplay
+            key={i}
+            groupLabel={GROUP_LABELS[i]}
+            comparison={group}
+            myCards={groupCards[i].myCards}
+            opponentCards={groupCards[i].opponentCards}
+            mySide={mySide}
+          />
+        ))}
       </div>
 
       {/* Rematch / Leave */}

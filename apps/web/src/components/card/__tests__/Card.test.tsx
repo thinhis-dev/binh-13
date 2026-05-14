@@ -51,4 +51,37 @@ describe('Card', () => {
       Symbol.for('react.memo'),
     )
   })
+
+  it('applies green ring when highlight="win"', () => {
+    render(<Card card={MOCK_HAND[0]} highlight="win" />)
+
+    expect(screen.getByRole('img', { name: /a of spades/i })).toHaveClass(
+      'ring-green-500',
+    )
+  })
+
+  it('applies red ring when highlight="lose"', () => {
+    render(<Card card={MOCK_HAND[0]} highlight="lose" />)
+
+    expect(screen.getByRole('img', { name: /a of spades/i })).toHaveClass(
+      'ring-red-500',
+    )
+  })
+
+  it('applies no highlight ring when highlight is omitted', () => {
+    render(<Card card={MOCK_HAND[0]} />)
+
+    const el = screen.getByRole('img', { name: /a of spades/i })
+    expect(el).not.toHaveClass('ring-green-500')
+    expect(el).not.toHaveClass('ring-red-500')
+  })
+
+  it('highlight ring coexists with selected ring — highlight takes visual precedence', () => {
+    render(<Card card={MOCK_HAND[0]} highlight="win" selected />)
+
+    const el = screen.getByRole('img', { name: /a of spades/i })
+    // tailwind-merge keeps the last ring-color class; highlight is applied after
+    // selected so ring-green-500 wins visually
+    expect(el).toHaveClass('ring-green-500')
+  })
 })

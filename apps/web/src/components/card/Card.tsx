@@ -12,6 +12,7 @@ type CardProps = {
   onClick?: () => void
   size?: 'sm' | 'md'
   dragSource?: DragSource
+  highlight?: 'win' | 'lose'
 }
 
 const sizeClass = {
@@ -25,6 +26,7 @@ function CardComponent({
   onClick,
   size = 'md',
   dragSource,
+  highlight,
 }: CardProps) {
   const isRed = RED_SUITS.has(card.suit)
   const rank = RANK_LABEL[card.rank]
@@ -36,6 +38,8 @@ function CardComponent({
     sizeClass[size],
     isRed ? 'text-red-600' : 'text-foreground',
     selected && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
+    highlight === 'win' && 'ring-2 ring-green-500 ring-offset-1',
+    highlight === 'lose' && 'ring-2 ring-red-500 ring-offset-1',
   )
 
   const svgContent = (

@@ -238,4 +238,199 @@ describe('Result page', () => {
     // p2 loses when winner is p1
     expect(screen.getByText('You Lose')).toBeInTheDocument()
   })
+
+  // ─── Visual card display ────────────────────────────────────────────────────
+
+  it('displays cards for all three groups when result exists (26 cards total)', () => {
+    useGameStore.getState().setResult(makeResult())
+    renderResult()
+
+    // 5+5 (group1) + 5+5 (group2) + 3+3 (group3) = 26 playing-card elements
+    expect(screen.getAllByTestId('playing-card')).toHaveLength(26)
+  })
+
+  it('cards in a winning group have green highlight', () => {
+    useGameStore.getState().setResult(
+      makeResult({
+        group1: {
+          result: 'p1',
+          p1Hand: 'Royal Flush',
+          p2Hand: 'Straight Flush',
+          p1Foul: false,
+          p2Foul: false,
+        },
+      }),
+    )
+    renderResult()
+
+    // Royal flush = all 5 highlighted green for p1
+    const greenCards = document.querySelectorAll('[class*="ring-green-500"]')
+    expect(greenCards.length).toBeGreaterThan(0)
+  })
+
+  it('cards in a losing group have red highlight', () => {
+    useGameStore.getState().setResult(
+      makeResult({
+        group2: {
+          result: 'p2',
+          p1Hand: 'Straight',
+          p2Hand: 'Flush',
+          p1Foul: false,
+          p2Foul: false,
+        },
+      }),
+    )
+    renderResult()
+
+    // p1 loses group2 → p1 cards in group2 are red-highlighted
+    const redCards = document.querySelectorAll('[class*="ring-red-500"]')
+    expect(redCards.length).toBeGreaterThan(0)
+  })
+
+  it('renders "You" and "Opponent" labels for each group', () => {
+    useGameStore.getState().setResult(makeResult())
+    renderResult()
+
+    // 3 groups × 1 label each + 1 from the score summary = 4 total
+    const youLabels = screen.getAllByText('You')
+    const opponentLabels = screen.getAllByText('Opponent')
+    expect(youLabels).toHaveLength(4)
+    expect(opponentLabels).toHaveLength(4)
+  })
+
+  it('both players hand descriptions are visible for each group', () => {
+    useGameStore.getState().setResult(makeResult())
+    renderResult()
+
+    expect(screen.getByText('Royal Flush')).toBeInTheDocument()
+    expect(screen.getByText('Straight Flush')).toBeInTheDocument()
+  })
+
+  it('foul player groups all show red highlight on their cards', () => {
+    const foulResult = makeResult({
+      winner: 'p2',
+      p1Foul: true,
+      p2Foul: false,
+      p1Score: 0,
+      p2Score: 3,
+      group1: {
+        result: 'p2',
+        p1Hand: 'Foul',
+        p2Hand: 'Straight Flush',
+        p1Foul: true,
+        p2Foul: false,
+      },
+      group2: {
+        result: 'p2',
+        p1Hand: 'Foul',
+        p2Hand: 'Flush',
+        p1Foul: true,
+        p2Foul: false,
+      },
+      group3: {
+        result: 'p2',
+        p1Hand: 'Foul',
+        p2Hand: 'High Card',
+        p1Foul: true,
+        p2Foul: false,
+      },
+    })
+    useGameStore.getState().setResult(foulResult)
+    renderResult()
+
+    // p1 (current player) fouls — all their groups lost → red highlights
+    const redCards = document.querySelectorAll('[class*="ring-red-500"]')
+    expect(redCards.length).toBeGreaterThan(0)
+
+    // All 3 groups show ✗ for the fouling player
+    const lostIcons = screen.getAllByLabelText('Lost')
+    expect(lostIcons).toHaveLength(3)
+  })
+
+  it('opponent foul groups all show green highlight for winner', () => {
+    const foulResult = makeResult({
+      winner: 'p1',
+      p1Foul: false,
+      p2Foul: true,
+      p1Score: 3,
+      p2Score: 0,
+      group1: {
+        result: 'p1',
+        p1Hand: 'Royal Flush',
+        p2Hand: 'Foul',
+        p1Foul: false,
+        p2Foul: true,
+      },
+      group2: {
+        result: 'p1',
+        p1Hand: 'Straight',
+        p2Hand: 'Foul',
+        p1Foul: false,
+        p2Foul: true,
+      },
+      group3: {
+        result: 'p1',
+        p1Hand: 'High Card',
+        p2Hand: 'Foul',
+        p1Foul: false,
+        p2Foul: true,
+      },
+    })
+    useGameStore.getState().setResult(foulResult)
+    renderResult()
+
+    // p1 (current player) wins all 3 groups → green highlights
+    const greenCards = document.querySelectorAll('[class*="ring-green-500"]')
+    expect(greenCards.length).toBeGreaterThan(0)
+
+    // All 3 groups show ✓ for the winner
+    const wonIcons = screen.getAllByLabelText('Won')
+    expect(wonIcons).toHaveLength(3)
+  })
+
+  it('cards are sorted within each group display (highest rank first)', () => {
+    // Use unsorted cards in the arrangement
+    const unsortedGroup1: PlayerArrangement['group1'] = [
+      makeCard('3', 'S'),
+      makeCard('A', 'S'),
+      makeCard('7', 'H'),
+      makeCard('K', 'D'),
+      makeCard('9', 'C'),
+    ]
+    const unsortedGroup3: PlayerArrangement['group3'] = [
+      makeCard('2', 'D'),
+      makeCard('Q', 'H'),
+      makeCard('5', 'C'),
+    ]
+
+    useGameStore.getState().setResult(
+      makeResult({
+        arrangements: {
+          p1: {
+            playerId: 1,
+            group1: unsortedGroup1,
+            group2: dummyGroup2,
+            group3: unsortedGroup3,
+          },
+          p2: {
+            playerId: 2,
+            group1: dummyGroup1,
+            group2: dummyGroup2,
+            group3: dummyGroup3,
+          },
+        },
+      }),
+    )
+    renderResult()
+
+    // All 26 cards should be rendered
+    const allCards = screen.getAllByTestId('playing-card')
+    expect(allCards.length).toBe(26)
+
+    // Check the first group's "You" row: should be sorted A, K, 9, 7, 3
+    // The first 5 playing-card elements belong to p1's group1 (sorted)
+    expect(allCards[0]).toHaveAttribute('aria-label', 'A of Spades')
+    expect(allCards[1]).toHaveAttribute('aria-label', 'K of Diamonds')
+    expect(allCards[4]).toHaveAttribute('aria-label', '3 of Spades')
+  })
 })
