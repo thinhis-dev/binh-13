@@ -12,6 +12,7 @@ type GameState = {
   arrangement: Partial<PlayerArrangement> | null
   result: RoundResult | null
   timerSeconds: number
+  timerExpired: boolean
   opponentSubmitted: boolean
   submitted: boolean
   setRoom: (room: Room) => void
@@ -19,6 +20,7 @@ type GameState = {
   setArrangement: (arrangement: Partial<PlayerArrangement>) => void
   setResult: (result: RoundResult) => void
   setTimer: (seconds: number) => void
+  setTimerExpired: (v: boolean) => void
   setOpponentSubmitted: (v: boolean) => void
   setSubmitted: (v: boolean) => void
   reset: () => void
@@ -30,6 +32,7 @@ const initialState = {
   arrangement: null,
   result: null,
   timerSeconds: 0,
+  timerExpired: false,
   opponentSubmitted: false,
   submitted: false,
 }
@@ -41,6 +44,7 @@ export const useGameStore = create<GameState>()((set) => ({
   setArrangement: (arrangement) => set({ arrangement }),
   setResult: (result) => set({ result }),
   setTimer: (timerSeconds) => set({ timerSeconds }),
+  setTimerExpired: (timerExpired) => set({ timerExpired }),
   setOpponentSubmitted: (opponentSubmitted) => set({ opponentSubmitted }),
   setSubmitted: (submitted) => set({ submitted }),
   reset: () => set(initialState),

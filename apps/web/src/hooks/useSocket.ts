@@ -8,6 +8,7 @@ export function useSocket() {
   const [connected, setConnected] = useState(socket.connected)
   const setHand = useGameStore((s) => s.setHand)
   const setTimer = useGameStore((s) => s.setTimer)
+  const setTimerExpired = useGameStore((s) => s.setTimerExpired)
   const setOpponentSubmitted = useGameStore((s) => s.setOpponentSubmitted)
   const setResult = useGameStore((s) => s.setResult)
 
@@ -69,6 +70,9 @@ export function useSocket() {
     }
     const handleTimer = (payload: { secondsLeft: number }) => {
       setTimer(payload.secondsLeft)
+      if (payload.secondsLeft <= 0) {
+        setTimerExpired(true)
+      }
     }
     const handleOpponentSubmitted = () => {
       setOpponentSubmitted(true)
@@ -92,7 +96,7 @@ export function useSocket() {
       socket.off(EVENTS.GAME_OPPONENT_SUBMITTED, handleOpponentSubmitted)
       socket.off(EVENTS.GAME_RESULT, handleResult)
     }
-  }, [setHand, setTimer, setOpponentSubmitted, setResult])
+  }, [setHand, setTimer, setTimerExpired, setOpponentSubmitted, setResult])
 
   return {
     connected,

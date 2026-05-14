@@ -1,4 +1,4 @@
-import { EVENTS } from '@binh-13/shared'
+import { EVENTS, GAME_TIMER_SECONDS } from '@binh-13/shared'
 import type { Card, PlayerArrangement } from '@binh-13/shared'
 import type { Server } from 'socket.io'
 import { z } from 'zod'
@@ -205,7 +205,7 @@ export function triggerGameStart(
   io: Server,
   roomCode: string,
   players: Array<{ playerId: number; seat: 1 | 2 }>,
-  timerSeconds = 60,
+  timerSeconds?: number,
 ): void {
   if (players.length !== 2) return
 
@@ -213,7 +213,11 @@ export function triggerGameStart(
   const p1Id = sorted[0].playerId
   const p2Id = sorted[1].playerId
 
-  const game = startGame(roomCode, [p1Id, p2Id], timerSeconds)
+  const game = startGame(
+    roomCode,
+    [p1Id, p2Id],
+    timerSeconds ?? GAME_TIMER_SECONDS,
+  )
   updateRoomStatus(roomCode, 'arranging')
 
   // Persist dealt hands

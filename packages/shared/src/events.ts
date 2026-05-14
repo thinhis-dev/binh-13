@@ -1,3 +1,6 @@
+/** Default arrangement timer in seconds. Change this single value to adjust game-wide. */
+export const GAME_TIMER_SECONDS = 600
+
 // Socket event name constants — always import from here, never use raw strings.
 export const EVENTS = {
   SESSION_CREATE: 'session:create',

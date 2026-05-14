@@ -38,6 +38,7 @@ export function GameBoard({ initialCards }: GameBoardProps) {
   )
 
   const timerSeconds = useGameStore((s) => s.timerSeconds)
+  const timerExpired = useGameStore((s) => s.timerExpired)
   const submitted = useGameStore((s) => s.submitted)
   const setSubmitted = useGameStore((s) => s.setSubmitted)
   const opponentSubmitted = useGameStore((s) => s.opponentSubmitted)
@@ -139,7 +140,8 @@ export function GameBoard({ initialCards }: GameBoardProps) {
   }, [])
 
   const handleSubmit = useCallback(() => {
-    if (!isComplete || !playerId || !roomCode || submitted) return
+    if (!isComplete || !playerId || !roomCode || submitted || timerExpired)
+      return
     submitArrangement(playerId, roomCode, { group1, group2, group3 })
     setSubmitted(true)
   }, [
@@ -147,6 +149,7 @@ export function GameBoard({ initialCards }: GameBoardProps) {
     playerId,
     roomCode,
     submitted,
+    timerExpired,
     setSubmitted,
     submitArrangement,
     group1,
@@ -185,6 +188,12 @@ export function GameBoard({ initialCards }: GameBoardProps) {
           </div>
         )}
 
+        {timerExpired && !submitted && (
+          <div className="rounded border border-red-500 bg-red-50 px-3 py-2 text-sm text-red-800">
+            ⏰ Time's up! Your arrangement was auto-submitted as a forfeit.
+          </div>
+        )}
+
         <main className="flex flex-1 flex-col gap-4 lg:flex-row">
           <div className="min-w-0 flex-1">
             <HandArea
@@ -218,7 +227,9 @@ export function GameBoard({ initialCards }: GameBoardProps) {
           <Button
             type="button"
             size="lg"
-            disabled={!isComplete || submitted || hasFoulWarning}
+            disabled={
+              !isComplete || submitted || hasFoulWarning || timerExpired
+            }
             onClick={handleSubmit}
           >
             Submit Arrangement

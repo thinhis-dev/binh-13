@@ -25,7 +25,7 @@ function GroupPanelComponent({
   frontLabel,
 }: GroupPanelProps) {
   return (
-    <aside className="flex w-full flex-col gap-3 lg:w-[28rem]">
+    <aside className="flex w-full flex-col gap-3 lg:w-md">
       <GroupSlot
         groupKey="group1"
         label="Back (5)"
