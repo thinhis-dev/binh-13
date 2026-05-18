@@ -48,7 +48,8 @@ function GroupSlotComponent({
       className={cn(
         'rounded-md border bg-card p-3 transition',
         isActive && 'border-primary/70 bg-primary/5 ring-1 ring-primary/40',
-        shouldHighlightDrop && 'border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/50',
+        shouldHighlightDrop
+        && 'border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/50',
       )}
     >
       <div className="flex items-center justify-between gap-3">

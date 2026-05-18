@@ -2,6 +2,14 @@
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "js/ts.tsdk.path": "node_modules/typescript/lib",
+
+  // Use ESLint as the formatter (replaces Prettier/default formatter)
+  "editor.formatOnSave": false,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.format.enable": true,
+
   "chat.tools.terminal.autoApprove": {
     "/^pnpm -r test:coverage 2>&1$/": {
       "approve": true,
