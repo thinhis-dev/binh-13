@@ -1,12 +1,13 @@
-import { memo, type ReactNode } from 'react'
+import type { Card as CardType } from '@binh-13/shared'
+import type { ReactNode } from 'react'
+import type { DragData, DragSource } from '@/lib/dnd'
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import type { Card as CardType } from '@binh-13/shared'
-import { cn } from '@/lib/utils'
+import { memo } from 'react'
 import { RANK_LABEL, RED_SUITS, SUIT_LABEL, SUIT_SYMBOL } from '@/lib/cards'
-import type { DragData, DragSource } from '@/lib/dnd'
+import { cn } from '@/lib/utils'
 
-type CardProps = {
+interface CardProps {
   card: CardType
   selected?: boolean
   onClick?: () => void
@@ -107,7 +108,7 @@ function CardComponent({
   )
 }
 
-type InteractiveCardProps = {
+interface InteractiveCardProps {
   card: CardType
   dragSource?: DragSource
   label: string
@@ -127,8 +128,8 @@ function InteractiveCard({
   const dragData: DragData | undefined = dragSource
     ? { card, source: dragSource }
     : undefined
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({
+  const { attributes, listeners, setNodeRef, transform, isDragging }
+    = useDraggable({
       id: card.id,
       data: dragData,
       disabled: !dragSource,

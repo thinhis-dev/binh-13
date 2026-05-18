@@ -411,7 +411,7 @@ WAITING ──────────────► ARRANGING ─────�
 ### In-memory game instance
 
 ```ts
-type GameInstance = {
+interface GameInstance {
   roomCode: string
   hands: Map<number, Card[]> // playerId → dealt 13 cards
   submissions: Map<number, PlayerArrangement> // playerId → submitted arrangement

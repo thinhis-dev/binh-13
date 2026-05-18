@@ -2,7 +2,7 @@ import type { Card, GroupComparison } from '@binh-13/shared'
 import { getHighlightedCardIds } from '@binh-13/shared'
 import { ResultCardRow } from './ResultCardRow'
 
-type ResultGroupDisplayProps = {
+interface ResultGroupDisplayProps {
   groupLabel: string
   comparison: GroupComparison
   myCards: Card[]
@@ -13,7 +13,7 @@ type ResultGroupDisplayProps = {
 function groupIcon(
   comparison: GroupComparison,
   mySide: 'p1' | 'p2',
-): { symbol: string; color: string; label: string } {
+): { symbol: string, color: string, label: string } {
   if (comparison.result === mySide)
     return { symbol: '✓', color: 'text-green-600', label: 'Won' }
   if (comparison.result === 'draw')
@@ -30,16 +30,16 @@ export function ResultGroupDisplay({
 }: ResultGroupDisplayProps) {
   const { symbol, color, label } = groupIcon(comparison, mySide)
 
-  const myOutcome: 'win' | 'lose' | 'draw' =
-    comparison.result === 'draw'
+  const myOutcome: 'win' | 'lose' | 'draw'
+    = comparison.result === 'draw'
       ? 'draw'
       : comparison.result === mySide
         ? 'win'
         : 'lose'
 
   const opponentSide = mySide === 'p1' ? 'p2' : 'p1'
-  const opponentOutcome: 'win' | 'lose' | 'draw' =
-    comparison.result === 'draw'
+  const opponentOutcome: 'win' | 'lose' | 'draw'
+    = comparison.result === 'draw'
       ? 'draw'
       : comparison.result === opponentSide
         ? 'win'

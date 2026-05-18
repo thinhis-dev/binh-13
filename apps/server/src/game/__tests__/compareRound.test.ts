@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
 import type { Card, PlayerArrangement } from '@binh-13/shared'
+import { describe, expect, it } from 'vitest'
 import { compareRound } from '../compareRound'
 
 function card(rank: string, suit: string): Card {
@@ -18,9 +18,9 @@ function arr(
 ): PlayerArrangement {
   return {
     playerId,
-    group1: back.map((s) => card(s[0], s[1])) as PlayerArrangement['group1'],
-    group2: middle.map((s) => card(s[0], s[1])) as PlayerArrangement['group2'],
-    group3: front.map((s) => card(s[0], s[1])) as PlayerArrangement['group3'],
+    group1: back.map(s => card(s[0], s[1])) as PlayerArrangement['group1'],
+    group2: middle.map(s => card(s[0], s[1])) as PlayerArrangement['group2'],
+    group3: front.map(s => card(s[0], s[1])) as PlayerArrangement['group3'],
   }
 }
 
@@ -69,7 +69,7 @@ const P2_FOUL = arr(
 )
 
 describe('compareRound', () => {
-  it('P1 wins all 3 groups', () => {
+  it('p1 wins all 3 groups', () => {
     const result = compareRound(P1_STRONG, P2_WEAK)
     expect(result.winner).toBe('p1')
     expect(result.p1Score).toBe(3)
@@ -79,14 +79,14 @@ describe('compareRound', () => {
     expect(result.group3.result).toBe('p1')
   })
 
-  it('P2 wins all 3 groups', () => {
+  it('p2 wins all 3 groups', () => {
     const result = compareRound(P1_WEAK, P2_STRONG)
     expect(result.winner).toBe('p2')
     expect(result.p1Score).toBe(0)
     expect(result.p2Score).toBe(3)
   })
 
-  it('P1 wins 2, P2 wins 1 (mixed results)', () => {
+  it('p1 wins 2, P2 wins 1 (mixed results)', () => {
     // P1 strong back, P2 stronger middle and front
     const p1 = arr(
       1,
@@ -106,7 +106,7 @@ describe('compareRound', () => {
     expect(result.p2Score).toBe(1)
   })
 
-  it('All 3 groups draw → winner is draw', () => {
+  it('all 3 groups draw → winner is draw', () => {
     const identical1 = arr(
       1,
       ['AS', 'AH', 'KD', 'QC', 'JS'],
@@ -125,7 +125,7 @@ describe('compareRound', () => {
     expect(result.p2Score).toBe(0)
   })
 
-  it('P1 fouls → P2 wins all', () => {
+  it('p1 fouls → P2 wins all', () => {
     const result = compareRound(P1_FOUL, P2_WEAK)
     expect(result.winner).toBe('p2')
     expect(result.p1Foul).toBe(true)
@@ -137,7 +137,7 @@ describe('compareRound', () => {
     expect(result.group3.result).toBe('p2')
   })
 
-  it('P2 fouls → P1 wins all', () => {
+  it('p2 fouls → P1 wins all', () => {
     const result = compareRound(P1_WEAK, P2_FOUL)
     expect(result.winner).toBe('p1')
     expect(result.p2Foul).toBe(true)
@@ -146,7 +146,7 @@ describe('compareRound', () => {
     expect(result.p2Score).toBe(0)
   })
 
-  it('Both foul → draw', () => {
+  it('both foul → draw', () => {
     const result = compareRound(P1_FOUL, P2_FOUL)
     expect(result.winner).toBe('draw')
     expect(result.p1Foul).toBe(true)
@@ -186,7 +186,7 @@ describe('compareRound', () => {
     expect(result.arrangements.p2).toBe(P2_WEAK)
   })
 
-  it('P1 wins 2, 1 draw — winner is p1', () => {
+  it('p1 wins 2, 1 draw — winner is p1', () => {
     // P1 back wins, P2 middle wins, front p1 wins → 2-1 p1
     const p1 = arr(
       1,

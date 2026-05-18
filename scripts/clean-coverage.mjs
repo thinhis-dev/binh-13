@@ -16,8 +16,10 @@ async function removeCoverageDirs(relativePath) {
   if (path.basename(absolutePath) === 'coverage') {
     try {
       await stat(absolutePath)
-    } catch (error) {
-      if (error?.code === 'ENOENT') return
+    }
+    catch (error) {
+      if (error?.code === 'ENOENT')
+        return
       throw error
     }
 
@@ -29,13 +31,16 @@ async function removeCoverageDirs(relativePath) {
   let entries
   try {
     entries = await readdir(absolutePath, { withFileTypes: true })
-  } catch (error) {
-    if (error?.code === 'ENOENT') return
+  }
+  catch (error) {
+    if (error?.code === 'ENOENT')
+      return
     throw error
   }
 
   for (const entry of entries) {
-    if (!entry.isDirectory()) continue
+    if (!entry.isDirectory())
+      continue
 
     await removeCoverageDirs(path.join(relativePath, entry.name))
   }
@@ -50,7 +55,7 @@ function toPosix(value) {
   return value.split(path.sep).join('/')
 }
 
-await Promise.all(searchRoots.map((root) => removeCoverageDirs(root)))
+await Promise.all(searchRoots.map(root => removeCoverageDirs(root)))
 
 if (removedCoverageDirs.length > 0) {
   console.log(`Removed coverage output: ${removedCoverageDirs.sort().join(', ')}`)

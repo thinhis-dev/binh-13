@@ -1,11 +1,11 @@
-import { memo } from 'react'
-import { useDroppable } from '@dnd-kit/core'
 import type { Card as CardType } from '@binh-13/shared'
+import type { GroupKey } from '@/hooks/useArrangement'
+import { useDroppable } from '@dnd-kit/core'
+import { memo } from 'react'
 import { Card } from '@/components/card/Card'
 import { cn } from '@/lib/utils'
-import type { GroupKey } from '@/hooks/useArrangement'
 
-type GroupSlotProps = {
+interface GroupSlotProps {
   groupKey: GroupKey
   label: string
   capacity: 5 | 3
@@ -37,7 +37,8 @@ function GroupSlotComponent({
   )
 
   function handleSlotClick() {
-    if (isActive) onSlotClick()
+    if (isActive)
+      onSlotClick()
   }
 
   return (
@@ -53,12 +54,17 @@ function GroupSlotComponent({
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold">{label}</h3>
         <span className="text-xs text-muted-foreground">
-          {cards.length} / {capacity} cards
+          {cards.length}
+          {' '}
+          /
+          {capacity}
+          {' '}
+          cards
         </span>
       </div>
 
       <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
-        {cards.map((card) => (
+        {cards.map(card => (
           <Card
             key={card.id}
             card={card}
@@ -67,7 +73,7 @@ function GroupSlotComponent({
             onClick={() => onCardClick(card)}
           />
         ))}
-        {placeholders.map((placeholder) => (
+        {placeholders.map(placeholder => (
           <button
             key={placeholder}
             type="button"

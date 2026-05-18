@@ -5,21 +5,21 @@ import { logger } from '../lib/logger'
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const ROOM_CODE_LENGTH = 6
 
-type RoomRow = {
+interface RoomRow {
   code: string
   status: string
   created_by: number
   created_at: number
 }
 
-type PlayerRow = {
+interface PlayerRow {
   player_id: number
   name: string
   seat: number
   connected: number
 }
 
-export type RoomState = {
+export interface RoomState {
   code: string
   status: string
   createdBy: number
@@ -71,7 +71,7 @@ export function joinRoom(code: string, playerId: number): boolean {
   }
 
   const existingPlayer = room.players.find(
-    (player) => player.playerId === playerId,
+    player => player.playerId === playerId,
   )
   if (existingPlayer) {
     db.prepare(
@@ -93,7 +93,7 @@ export function joinRoom(code: string, playerId: number): boolean {
     return false
   }
 
-  const seat = room.players.some((player) => player.seat === 1) ? 2 : 1
+  const seat = room.players.some(player => player.seat === 1) ? 2 : 1
 
   db.prepare(
     `
@@ -181,7 +181,7 @@ export function getRoom(code: string): RoomState | undefined {
     code: room.code,
     status: room.status,
     createdBy: room.created_by,
-    players: players.map((player) => ({
+    players: players.map(player => ({
       playerId: player.player_id,
       name: player.name,
       seat: toSeat(player.seat),
@@ -219,7 +219,7 @@ export function toPublicRoom(room: RoomState): Room {
     code: room.code,
     status: room.status as Room['status'],
     createdBy: room.createdBy,
-    players: room.players.map((player) => ({
+    players: room.players.map(player => ({
       id: player.playerId,
       name: player.name,
       seat: player.seat,
@@ -231,7 +231,8 @@ export function toPublicRoom(room: RoomState): Room {
 function generateUniqueRoomCode(): string {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const code = generateRoomCode()
-    if (!getRoom(code)) return code
+    if (!getRoom(code))
+      return code
   }
 
   throw new Error('Could not generate a unique room code')

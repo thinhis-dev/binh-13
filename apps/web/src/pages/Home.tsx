@@ -1,14 +1,16 @@
+import type { Room } from '@binh-13/shared'
+import type { FormEvent } from 'react'
+import { EVENTS } from '@binh-13/shared'
 import axios from 'axios'
-import { FormEvent, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { EVENTS, type Room } from '@binh-13/shared'
 import { Button } from '@/components/ui/button'
 import { useSocket } from '@/hooks/useSocket'
 import { socket } from '@/lib/socket'
 import { useGameStore } from '@/stores/gameStore'
 import { useSessionStore } from '@/stores/sessionStore'
 
-type HealthResponse = {
+interface HealthResponse {
   status: string
   timestamp: string
 }
@@ -18,11 +20,11 @@ type PendingAction = 'session' | 'create' | 'join' | null
 export default function Home() {
   const navigate = useNavigate()
   const { createSession, createRoom, joinRoom } = useSocket()
-  const playerId = useSessionStore((state) => state.playerId)
-  const storedName = useSessionStore((state) => state.name)
-  const setSession = useSessionStore((state) => state.setSession)
-  const setRoomCode = useSessionStore((state) => state.setRoom)
-  const setGameRoom = useGameStore((state) => state.setRoom)
+  const playerId = useSessionStore(state => state.playerId)
+  const storedName = useSessionStore(state => state.name)
+  const setSession = useSessionStore(state => state.setSession)
+  const setRoomCode = useSessionStore(state => state.setRoom)
+  const setGameRoom = useGameStore(state => state.setRoom)
   const [health, setHealth] = useState<HealthResponse | null>(null)
   const [serverError, setServerError] = useState(false)
   const [name, setName] = useState(storedName ?? '')
@@ -34,12 +36,12 @@ export default function Home() {
   useEffect(() => {
     axios
       .get<HealthResponse>('/api/health')
-      .then((res) => setHealth(res.data))
+      .then(res => setHealth(res.data))
       .catch(() => setServerError(true))
   }, [])
 
   useEffect(() => {
-    const handleSessionCreated = (payload: { playerId: number; name: string }) => {
+    const handleSessionCreated = (payload: { playerId: number, name: string }) => {
       setSession(payload.playerId, payload.name)
       setPendingAction(null)
       setError('')
@@ -92,7 +94,8 @@ export default function Home() {
   function handleStart(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const trimmedName = name.trim()
-    if (!trimmedName) return
+    if (!trimmedName)
+      return
 
     setError('')
     setPendingAction('session')
@@ -100,7 +103,8 @@ export default function Home() {
   }
 
   function handleCreateRoom() {
-    if (!playerId) return
+    if (!playerId)
+      return
 
     setError('')
     setPendingAction('create')
@@ -109,7 +113,8 @@ export default function Home() {
 
   function handleJoinRoom(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!playerId || roomCode.length !== 6) return
+    if (!playerId || roomCode.length !== 6)
+      return
 
     setError('')
     setPendingAction('join')
@@ -134,7 +139,9 @@ export default function Home() {
         {!serverError && !health && <span>Connecting to server...</span>}
         {health && (
           <span className="text-green-600">
-            Server ok - {new Date(health.timestamp).toLocaleTimeString()}
+            Server ok -
+            {' '}
+            {new Date(health.timestamp).toLocaleTimeString()}
           </span>
         )}
       </div>
@@ -145,78 +152,81 @@ export default function Home() {
         </div>
       )}
 
-      {!hasSession ? (
-        <form className="w-full max-w-sm space-y-3" onSubmit={handleStart}>
-          <label className="block text-sm font-medium" htmlFor="player-name">
-            Name
-          </label>
-          <input
-            id="player-name"
-            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            maxLength={20}
-            required
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Alice"
-          />
-          <Button
-            className="w-full"
-            type="submit"
-            disabled={!name.trim() || pendingAction === 'session'}
-          >
-            {pendingAction === 'session' ? 'Starting...' : 'Start'}
-          </Button>
-        </form>
-      ) : (
-        <div className="w-full max-w-sm space-y-4">
-          <div className="text-center text-sm text-muted-foreground">
-            Welcome back, <span className="font-medium text-foreground">{storedName}</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Button
-              type="button"
-              onClick={handleCreateRoom}
-              disabled={pendingAction === 'create'}
-            >
-              {pendingAction === 'create' ? 'Creating...' : 'Create Room'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowJoin((value) => !value)}
-            >
-              Join Room
-            </Button>
-          </div>
-
-          {showJoin && (
-            <form className="space-y-3" onSubmit={handleJoinRoom}>
-              <label className="block text-sm font-medium" htmlFor="room-code">
-                Room code
+      {!hasSession
+        ? (
+            <form className="w-full max-w-sm space-y-3" onSubmit={handleStart}>
+              <label className="block text-sm font-medium" htmlFor="player-name">
+                Name
               </label>
               <input
-                id="room-code"
-                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm uppercase tracking-widest outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                maxLength={6}
+                id="player-name"
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                maxLength={20}
                 required
-                value={roomCode}
-                onChange={(event) =>
-                  setRoomCodeInput(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))
-                }
-                placeholder="A3F9KZ"
+                value={name}
+                onChange={event => setName(event.target.value)}
+                placeholder="Alice"
               />
               <Button
                 className="w-full"
                 type="submit"
-                disabled={roomCode.length !== 6 || pendingAction === 'join'}
+                disabled={!name.trim() || pendingAction === 'session'}
               >
-                {pendingAction === 'join' ? 'Joining...' : 'Join'}
+                {pendingAction === 'session' ? 'Starting...' : 'Start'}
               </Button>
             </form>
+          )
+        : (
+            <div className="w-full max-w-sm space-y-4">
+              <div className="text-center text-sm text-muted-foreground">
+                Welcome back,
+                {' '}
+                <span className="font-medium text-foreground">{storedName}</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  onClick={handleCreateRoom}
+                  disabled={pendingAction === 'create'}
+                >
+                  {pendingAction === 'create' ? 'Creating...' : 'Create Room'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowJoin(value => !value)}
+                >
+                  Join Room
+                </Button>
+              </div>
+
+              {showJoin && (
+                <form className="space-y-3" onSubmit={handleJoinRoom}>
+                  <label className="block text-sm font-medium" htmlFor="room-code">
+                    Room code
+                  </label>
+                  <input
+                    id="room-code"
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm uppercase tracking-widest outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    maxLength={6}
+                    required
+                    value={roomCode}
+                    onChange={event =>
+                      setRoomCodeInput(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                    placeholder="A3F9KZ"
+                  />
+                  <Button
+                    className="w-full"
+                    type="submit"
+                    disabled={roomCode.length !== 6 || pendingAction === 'join'}
+                  >
+                    {pendingAction === 'join' ? 'Joining...' : 'Join'}
+                  </Button>
+                </form>
+              )}
+            </div>
           )}
-        </div>
-      )}
     </div>
   )
 }

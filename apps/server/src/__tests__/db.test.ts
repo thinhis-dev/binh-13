@@ -23,7 +23,8 @@ describe('db', () => {
       for (const suffix of ['', '-wal', '-shm']) {
         try {
           fs.unlinkSync(base + suffix)
-        } catch {
+        }
+        catch {
           /* absent or transiently locked — safe to ignore */
         }
       }

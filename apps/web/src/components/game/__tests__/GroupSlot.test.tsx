@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { GroupSlot } from '@/components/game/GroupSlot'
 import { MOCK_HAND } from '@/lib/mockCards'
 
-describe('GroupSlot', () => {
+describe('groupSlot', () => {
   it('shows capacity and empty placeholders', () => {
     render(
       <GroupSlot

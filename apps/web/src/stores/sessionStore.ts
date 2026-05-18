@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-type SessionState = {
+interface SessionState {
   playerId: number | null
   name: string | null
   roomCode: string | null
@@ -12,12 +12,12 @@ type SessionState = {
 
 export const useSessionStore = create<SessionState>()(
   persist(
-    (set) => ({
+    set => ({
       playerId: null,
       name: null,
       roomCode: null,
       setSession: (playerId, name) => set({ playerId, name }),
-      setRoom: (roomCode) => set({ roomCode }),
+      setRoom: roomCode => set({ roomCode }),
       clearSession: () => set({ playerId: null, name: null, roomCode: null }),
     }),
     { name: 'binh13-session' },

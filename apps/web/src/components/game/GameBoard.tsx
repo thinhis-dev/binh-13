@@ -1,27 +1,30 @@
-import { useCallback, useState } from 'react'
+import type { Card as CardType } from '@binh-13/shared'
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
+import type { GroupKey } from '@/hooks/useArrangement'
+import type { DragData } from '@/lib/dnd'
 import {
   DndContext,
+
   DragOverlay,
+
   KeyboardSensor,
   PointerSensor,
-  type DragEndEvent,
-  type DragStartEvent,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import type { Card as CardType } from '@binh-13/shared'
+import { useCallback, useState } from 'react'
 import { Card } from '@/components/card/Card'
-import { Button } from '@/components/ui/button'
 import { GroupPanel } from '@/components/game/GroupPanel'
 import { HandArea } from '@/components/game/HandArea'
 import { OpponentArea } from '@/components/game/OpponentArea'
-import { type GroupKey, useArrangement } from '@/hooks/useArrangement'
-import { type DragData, isDragSource } from '@/lib/dnd'
+import { Button } from '@/components/ui/button'
+import { useArrangement } from '@/hooks/useArrangement'
+import { useSocket } from '@/hooks/useSocket'
+import { isDragSource } from '@/lib/dnd'
 import { useGameStore } from '@/stores/gameStore'
 import { useSessionStore } from '@/stores/sessionStore'
-import { useSocket } from '@/hooks/useSocket'
 
-type GameBoardProps = {
+interface GameBoardProps {
   initialCards: CardType[]
 }
 
@@ -37,13 +40,13 @@ export function GameBoard({ initialCards }: GameBoardProps) {
     useSensor(KeyboardSensor),
   )
 
-  const timerSeconds = useGameStore((s) => s.timerSeconds)
-  const timerExpired = useGameStore((s) => s.timerExpired)
-  const submitted = useGameStore((s) => s.submitted)
-  const setSubmitted = useGameStore((s) => s.setSubmitted)
-  const opponentSubmitted = useGameStore((s) => s.opponentSubmitted)
-  const roomCode = useSessionStore((s) => s.roomCode)
-  const playerId = useSessionStore((s) => s.playerId)
+  const timerSeconds = useGameStore(s => s.timerSeconds)
+  const timerExpired = useGameStore(s => s.timerExpired)
+  const submitted = useGameStore(s => s.submitted)
+  const setSubmitted = useGameStore(s => s.setSubmitted)
+  const opponentSubmitted = useGameStore(s => s.opponentSubmitted)
+  const roomCode = useSessionStore(s => s.roomCode)
+  const playerId = useSessionStore(s => s.playerId)
   const { submitArrangement } = useSocket()
 
   const {
@@ -62,7 +65,7 @@ export function GameBoard({ initialCards }: GameBoardProps) {
     hasFoulWarning,
   } = useArrangement(initialCards)
 
-  const selectedCard = hand.find((card) => card.id === selectedCardId) ?? null
+  const selectedCard = hand.find(card => card.id === selectedCardId) ?? null
 
   const handleHandCardClick = useCallback(
     (card: CardType) => {
@@ -73,7 +76,8 @@ export function GameBoard({ initialCards }: GameBoardProps) {
 
   const handleSlotClick = useCallback(
     (groupKey: GroupKey) => {
-      if (!selectedCard) return
+      if (!selectedCard)
+        return
       assignToGroup(groupKey, selectedCard)
     },
     [assignToGroup, selectedCard],
@@ -107,13 +111,16 @@ export function GameBoard({ initialCards }: GameBoardProps) {
       setOverGroupKey(null)
 
       const destination = event.over?.id
-      if (!isDragSource(destination)) return
+      if (!isDragSource(destination))
+        return
 
       const data = event.active.data.current as DragData | undefined
-      if (!data || !isDragSource(data.source)) return
+      if (!data || !isDragSource(data.source))
+        return
 
       const { card, source } = data
-      if (source === destination) return
+      if (source === destination)
+        return
 
       if (source === 'hand') {
         // hand → group: assignToGroup enforces capacity internally
@@ -158,8 +165,8 @@ export function GameBoard({ initialCards }: GameBoardProps) {
     group3,
   ])
 
-  const timerColor =
-    timerSeconds <= 10
+  const timerColor
+    = timerSeconds <= 10
       ? 'text-red-500 animate-pulse'
       : timerSeconds <= 30
         ? 'text-yellow-500'
@@ -178,7 +185,10 @@ export function GameBoard({ initialCards }: GameBoardProps) {
           <OpponentArea opponentSubmitted={opponentSubmitted} />
           {timerSeconds > 0 && (
             <span className={`text-lg font-mono font-semibold ${timerColor}`}>
-              ⏱ {timerSeconds}s
+              ⏱
+              {' '}
+              {timerSeconds}
+              s
             </span>
           )}
         </header>

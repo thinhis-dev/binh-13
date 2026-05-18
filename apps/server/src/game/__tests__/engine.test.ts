@@ -8,7 +8,7 @@ describe('createDeck', () => {
 
   it('has no duplicate card ids', () => {
     const deck = createDeck()
-    const ids = deck.map((c) => c.id)
+    const ids = deck.map(c => c.id)
     expect(new Set(ids).size).toBe(52)
   })
 
@@ -32,7 +32,7 @@ describe('createDeck', () => {
     ]
     for (const suit of suits) {
       for (const rank of ranks) {
-        expect(deck.some((c) => c.rank === rank && c.suit === suit)).toBe(true)
+        expect(deck.some(c => c.rank === rank && c.suit === suit)).toBe(true)
       }
     }
   })
@@ -53,21 +53,22 @@ describe('shuffle', () => {
 
   it('preserves all elements', () => {
     const deck = createDeck()
-    const original = deck.map((c) => c.id)
+    const original = deck.map(c => c.id)
     shuffle(deck)
-    const shuffled = deck.map((c) => c.id)
+    const shuffled = deck.map(c => c.id)
     expect(shuffled.sort()).toEqual(original.sort())
   })
 
   it('statistically produces different orders', () => {
     const original = createDeck()
-      .map((c) => c.id)
+      .map(c => c.id)
       .join(',')
     let different = 0
     for (let i = 0; i < 10; i++) {
       const deck = createDeck()
       shuffle(deck)
-      if (deck.map((c) => c.id).join(',') !== original) different++
+      if (deck.map(c => c.id).join(',') !== original)
+        different++
     }
     // Expect at least 9 out of 10 shuffles to be different
     expect(different).toBeGreaterThanOrEqual(9)
@@ -84,8 +85,8 @@ describe('deal', () => {
 
   it('deal(2) hands have no overlap', () => {
     const hands = deal(2)
-    const ids0 = new Set(hands[0].map((c) => c.id))
-    const ids1 = new Set(hands[1].map((c) => c.id))
+    const ids0 = new Set(hands[0].map(c => c.id))
+    const ids1 = new Set(hands[1].map(c => c.id))
     for (const id of ids1) {
       expect(ids0.has(id)).toBe(false)
     }
@@ -94,7 +95,7 @@ describe('deal', () => {
   it('deal(2) uses exactly 26 unique cards', () => {
     const hands = deal(2)
     const all = [...hands[0], ...hands[1]]
-    expect(new Set(all.map((c) => c.id)).size).toBe(26)
+    expect(new Set(all.map(c => c.id)).size).toBe(26)
   })
 
   it('deal(4) returns 4 hands of 13 cards each', () => {
@@ -108,7 +109,7 @@ describe('deal', () => {
   it('deal(4) has no overlap across all hands', () => {
     const hands = deal(4)
     const all = hands.flat()
-    expect(new Set(all.map((c) => c.id)).size).toBe(52)
+    expect(new Set(all.map(c => c.id)).size).toBe(52)
   })
 
   it('throws for playerCount < 2', () => {

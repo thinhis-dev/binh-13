@@ -1,11 +1,11 @@
 import { createAdaptorServer } from '@hono/node-server'
-import { cors } from 'hono/cors'
 import { Hono } from 'hono'
+import { cors } from 'hono/cors'
 import { Server as SocketServer } from 'socket.io'
 import { initDb } from './db'
+import { registerGameEvents } from './game/gameEvents'
 import { logger } from './lib/logger'
 import { registerRoomEvents } from './rooms/roomEvents'
-import { registerGameEvents } from './game/gameEvents'
 
 export function createRealtimeServer() {
   const app = new Hono()
@@ -33,12 +33,11 @@ export function createRealtimeServer() {
     )
   })
 
-  app.get('/health', (c) =>
+  app.get('/health', c =>
     c.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
-    }),
-  )
+    }))
 
   initDb()
 

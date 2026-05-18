@@ -1,6 +1,7 @@
+import type { Card, Room } from '@binh-13/shared'
+import { EVENTS } from '@binh-13/shared'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { EVENTS, type Card, type Room } from '@binh-13/shared'
 import { Button } from '@/components/ui/button'
 import { useSocket } from '@/hooks/useSocket'
 import { socket } from '@/lib/socket'
@@ -12,14 +13,14 @@ export default function Lobby() {
   const params = useParams()
   const code = params.code?.toUpperCase() ?? ''
   const { joinRoom, leaveRoom, clearRoom } = useSocket()
-  const playerId = useSessionStore((state) => state.playerId)
-  const roomCode = useSessionStore((state) => state.roomCode)
-  const setRoomCode = useSessionStore((state) => state.setRoom)
-  const room = useGameStore((state) => state.room)
-  const setGameRoom = useGameStore((state) => state.setRoom)
-  const setHand = useGameStore((state) => state.setHand)
-  const setTimer = useGameStore((state) => state.setTimer)
-  const resetGame = useGameStore((state) => state.reset)
+  const playerId = useSessionStore(state => state.playerId)
+  const roomCode = useSessionStore(state => state.roomCode)
+  const setRoomCode = useSessionStore(state => state.setRoom)
+  const room = useGameStore(state => state.room)
+  const setGameRoom = useGameStore(state => state.setRoom)
+  const setHand = useGameStore(state => state.setHand)
+  const setTimer = useGameStore(state => state.setTimer)
+  const resetGame = useGameStore(state => state.reset)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -28,7 +29,8 @@ export default function Lobby() {
       return
     }
 
-    if (roomCode !== code) setRoomCode(code)
+    if (roomCode !== code)
+      setRoomCode(code)
     joinRoom(playerId, code)
   }, [code, joinRoom, navigate, playerId, roomCode, setRoomCode])
 
@@ -54,7 +56,8 @@ export default function Lobby() {
     }
 
     const handleRoomLeft = (payload: { playerId: number }) => {
-      if (payload.playerId !== playerId) return
+      if (payload.playerId !== playerId)
+        return
 
       setRoomCode(null)
       resetGame()
@@ -91,14 +94,15 @@ export default function Lobby() {
 
   const seats = useMemo(
     () =>
-      [1, 2].map((seat) =>
-        room?.players.find((player) => player.seat === seat),
+      [1, 2].map(seat =>
+        room?.players.find(player => player.seat === seat),
       ),
     [room],
   )
 
   function handleLeave() {
-    if (!playerId || !code) return
+    if (!playerId || !code)
+      return
 
     leaveRoom(playerId, code)
     setRoomCode(null)
@@ -107,7 +111,8 @@ export default function Lobby() {
   }
 
   function handleClear() {
-    if (!playerId || !code) return
+    if (!playerId || !code)
+      return
     clearRoom(playerId, code)
   }
 
@@ -127,7 +132,10 @@ export default function Lobby() {
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold">Room {code}</h1>
+            <h1 className="text-3xl font-semibold">
+              Room
+              {code}
+            </h1>
             <p className="text-sm text-muted-foreground">
               Share this code with the second player.
             </p>
@@ -159,24 +167,28 @@ export default function Lobby() {
             return (
               <div key={seat} className="rounded-md border bg-card p-4">
                 <div className="text-xs font-medium uppercase text-muted-foreground">
-                  Seat {seat}
+                  Seat
+                  {' '}
+                  {seat}
                 </div>
-                {player ? (
-                  <div className="mt-2 flex items-center justify-between gap-3">
-                    <span className="font-medium">{player.name}</span>
-                    <span
-                      className={
-                        player.connected
-                          ? 'text-sm text-green-600'
-                          : 'text-sm text-muted-foreground'
-                      }
-                    >
-                      {player.connected ? 'Connected' : 'Disconnected'}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="mt-2 text-muted-foreground">Waiting...</div>
-                )}
+                {player
+                  ? (
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <span className="font-medium">{player.name}</span>
+                        <span
+                          className={
+                            player.connected
+                              ? 'text-sm text-green-600'
+                              : 'text-sm text-muted-foreground'
+                          }
+                        >
+                          {player.connected ? 'Connected' : 'Disconnected'}
+                        </span>
+                      </div>
+                    )
+                  : (
+                      <div className="mt-2 text-muted-foreground">Waiting...</div>
+                    )}
               </div>
             )
           })}

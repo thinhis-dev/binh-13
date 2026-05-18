@@ -1,5 +1,5 @@
-import Database from 'better-sqlite3'
 import path from 'node:path'
+import Database from 'better-sqlite3'
 import { logger } from './lib/logger'
 
 let _db: Database.Database | null = null
@@ -17,7 +17,8 @@ export function initDb(): Database.Database {
 }
 
 export function getDb(): Database.Database {
-  if (!_db) throw new Error('Database not initialized. Call initDb() first.')
+  if (!_db)
+    throw new Error('Database not initialized. Call initDb() first.')
   return _db
 }
 

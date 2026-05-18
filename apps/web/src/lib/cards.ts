@@ -15,14 +15,14 @@ export const SUIT_LABEL: Record<Suit, string> = {
 }
 
 export const RANK_VALUE: Record<Rank, number> = {
-  '2': 2,
-  '3': 3,
-  '4': 4,
-  '5': 5,
-  '6': 6,
-  '7': 7,
-  '8': 8,
-  '9': 9,
+  2: 2,
+  3: 3,
+  4: 4,
+  5: 5,
+  6: 6,
+  7: 7,
+  8: 8,
+  9: 9,
   T: 10,
   J: 11,
   Q: 12,
@@ -31,14 +31,14 @@ export const RANK_VALUE: Record<Rank, number> = {
 }
 
 export const RANK_LABEL: Record<Rank, string> = {
-  '2': '2',
-  '3': '3',
-  '4': '4',
-  '5': '5',
-  '6': '6',
-  '7': '7',
-  '8': '8',
-  '9': '9',
+  2: '2',
+  3: '3',
+  4: '4',
+  5: '5',
+  6: '6',
+  7: '7',
+  8: '8',
+  9: '9',
   T: '10',
   J: 'J',
   Q: 'Q',
@@ -68,7 +68,8 @@ export function toPokerSolver(id: string): string {
 export function sortCards(cards: Card[]): Card[] {
   return cards.toSorted((a, b) => {
     const rankDiff = RANK_VALUE[b.rank] - RANK_VALUE[a.rank]
-    if (rankDiff !== 0) return rankDiff
+    if (rankDiff !== 0)
+      return rankDiff
     return SUIT_VALUE[b.suit] - SUIT_VALUE[a.suit]
   })
 }

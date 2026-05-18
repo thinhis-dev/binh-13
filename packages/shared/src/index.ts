@@ -1,5 +1,5 @@
-export * from './types'
-export * from './events'
 export * from './evaluator'
+export * from './events'
 export * from './foulCheck'
 export * from './handHighlight'
+export * from './types'

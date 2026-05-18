@@ -1,12 +1,12 @@
-import { create } from 'zustand'
 import type {
   Card,
   PlayerArrangement,
   Room,
   RoundResult,
 } from '@binh-13/shared'
+import { create } from 'zustand'
 
-type GameState = {
+interface GameState {
   room: Room | null
   hand: Card[]
   arrangement: Partial<PlayerArrangement> | null
@@ -37,15 +37,15 @@ const initialState = {
   submitted: false,
 }
 
-export const useGameStore = create<GameState>()((set) => ({
+export const useGameStore = create<GameState>()(set => ({
   ...initialState,
-  setRoom: (room) => set({ room }),
-  setHand: (hand) => set({ hand }),
-  setArrangement: (arrangement) => set({ arrangement }),
-  setResult: (result) => set({ result }),
-  setTimer: (timerSeconds) => set({ timerSeconds }),
-  setTimerExpired: (timerExpired) => set({ timerExpired }),
-  setOpponentSubmitted: (opponentSubmitted) => set({ opponentSubmitted }),
-  setSubmitted: (submitted) => set({ submitted }),
+  setRoom: room => set({ room }),
+  setHand: hand => set({ hand }),
+  setArrangement: arrangement => set({ arrangement }),
+  setResult: result => set({ result }),
+  setTimer: timerSeconds => set({ timerSeconds }),
+  setTimerExpired: timerExpired => set({ timerExpired }),
+  setOpponentSubmitted: opponentSubmitted => set({ opponentSubmitted }),
+  setSubmitted: submitted => set({ submitted }),
   reset: () => set(initialState),
 }))

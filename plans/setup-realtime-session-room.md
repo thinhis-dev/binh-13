@@ -196,7 +196,7 @@ getRoomByPlayer(playerId: number): RoomState | undefined
 **`RoomState` type** (server-internal, not in shared):
 
 ```ts
-type RoomState = {
+interface RoomState {
   code: string
   status: string
   createdBy: number
@@ -268,6 +268,7 @@ type RoomState = {
 ```ts
 // After io is created:
 import { registerRoomEvents } from './rooms/roomEvents'
+
 registerRoomEvents(io)
 ```
 
@@ -351,7 +352,7 @@ The hook subscribes to `connect` / `disconnect` to track `connected` state. It d
 **New store shape:**
 
 ```ts
-type SessionState = {
+interface SessionState {
   playerId: number | null
   name: string | null
   roomCode: string | null

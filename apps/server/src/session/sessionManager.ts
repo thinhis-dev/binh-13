@@ -1,13 +1,13 @@
 import { getDb } from '../db'
 import { logger } from '../lib/logger'
 
-type SessionRow = {
+interface SessionRow {
   player_id: number
   name: string
   socket_id: string
 }
 
-export type Session = {
+export interface Session {
   playerId: number
   name: string
   socketId: string

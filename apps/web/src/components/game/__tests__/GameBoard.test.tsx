@@ -2,11 +2,11 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GameBoard } from '@/components/game/GameBoard'
+import { RANK_LABEL, RANK_VALUE, SUIT_LABEL } from '@/lib/cards'
 import { MOCK_HAND } from '@/lib/mockCards'
-import { RANK_LABEL, RANK_VALUE, SUIT_LABEL, SUIT_VALUE } from '@/lib/cards'
 import { socket } from '@/lib/socket'
-import { useSessionStore } from '@/stores/sessionStore'
 import { useGameStore } from '@/stores/gameStore'
+import { useSessionStore } from '@/stores/sessionStore'
 
 function cardName(card: (typeof MOCK_HAND)[number]) {
   return `${RANK_LABEL[card.rank]} of ${SUIT_LABEL[card.suit]}`
@@ -23,7 +23,7 @@ async function assignCardToGroup(
   await user.click(screen.getAllByLabelText(`Empty ${label} slot`)[0])
 }
 
-describe('GameBoard', () => {
+describe('gameBoard', () => {
   beforeEach(() => {
     useSessionStore.getState().setSession(1, 'Alice')
     useSessionStore.getState().setRoom('ABCDEF')
@@ -95,14 +95,14 @@ describe('GameBoard', () => {
     // Query all card buttons by their aria-labels and verify order.
     const cards = screen
       .getAllByTestId('playing-card')
-      .map((el) => el.getAttribute('aria-label') ?? '')
+      .map(el => el.getAttribute('aria-label') ?? '')
 
     // Verify the first rendered card is the highest (AS) and last is the lowest
     expect(cards[0]).toMatch(/a of spades/i)
     expect(cards[cards.length - 1]).toMatch(/2 of spades/i)
   })
 
-  it('Sort button is wired: hand cards are sorted by rank desc after click', async () => {
+  it('sort button is wired: hand cards are sorted by rank desc after click', async () => {
     const user = userEvent.setup()
     render(<GameBoard initialCards={MOCK_HAND} />)
 

@@ -1,9 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Card, PlayerArrangement } from '@binh-13/shared'
-import { EVENTS } from '@binh-13/shared'
-import { startGame, endGame, getGame, submitArrangement } from '../gameManager'
-import { handleTimerExpiry, createForfeitArrangement } from '../gameEvents'
 import type { Server } from 'socket.io'
+import { EVENTS } from '@binh-13/shared'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { handleTimerExpiry } from '../gameEvents'
+import { endGame, getGame, startGame, submitArrangement } from '../gameManager'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -12,14 +12,14 @@ function makeCard(rank: Card['rank'], suit: Card['suit']): Card {
 }
 
 function makeMockIo() {
-  const emitted: Array<{ event: string; payload: unknown }> = []
+  const emitted: Array<{ event: string, payload: unknown }> = []
   const to = vi.fn().mockReturnValue({
     emit: vi.fn((event: string, payload: unknown) => {
       emitted.push({ event, payload })
     }),
   })
   return { to, emitted } as unknown as Server & {
-    emitted: Array<{ event: string; payload: unknown }>
+    emitted: Array<{ event: string, payload: unknown }>
   }
 }
 

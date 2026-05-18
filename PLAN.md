@@ -188,14 +188,14 @@ const winners = Hand.winners([handA, handB]) // [handA]
 // packages/shared/src/evaluator.ts
 
 const RANK_VALUE: Record<string, number> = {
-  '2': 2,
-  '3': 3,
-  '4': 4,
-  '5': 5,
-  '6': 6,
-  '7': 7,
-  '8': 8,
-  '9': 9,
+  2: 2,
+  3: 3,
+  4: 4,
+  5: 5,
+  6: 6,
+  7: 7,
+  8: 8,
+  9: 9,
   T: 10,
   J: 11,
   Q: 12,
@@ -205,13 +205,13 @@ const RANK_VALUE: Record<string, number> = {
 
 type ThreeCardCategory = 2 | 1 | 0 // ThreeOfAKind | OnePair | HighCard
 
-type ThreeCardRank = {
+interface ThreeCardRank {
   category: ThreeCardCategory
   tiebreakers: number[] // descending — primary matches first, then kickers
 }
 
 function evaluateThreeCard(cards: Card[]): ThreeCardRank {
-  const values = cards.map((c) => RANK_VALUE[c.rank]).sort((a, b) => b - a)
+  const values = cards.map(c => RANK_VALUE[c.rank]).sort((a, b) => b - a)
   const counts = new Map<number, number>()
   for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1)
 
@@ -228,7 +228,8 @@ function evaluateThreeCard(cards: Card[]): ThreeCardRank {
 }
 
 function compareThreeCard(a: ThreeCardRank, b: ThreeCardRank): -1 | 0 | 1 {
-  if (a.category !== b.category) return a.category > b.category ? 1 : -1
+  if (a.category !== b.category)
+    return a.category > b.category ? 1 : -1
   for (let i = 0; i < a.tiebreakers.length; i++) {
     if (a.tiebreakers[i] !== b.tiebreakers[i])
       return a.tiebreakers[i] > b.tiebreakers[i] ? 1 : -1
@@ -246,8 +247,8 @@ function validateArrangement(arrangement: PlayerArrangement): boolean {
   const middle = Hand.solve(arrangement.group2.map(toPokerSolver))
 
   const [winner] = Hand.winners([back, middle])
-  const backWinsOrDraw =
-    winner === back || Hand.winners([back, middle]).length === 2
+  const backWinsOrDraw
+    = winner === back || Hand.winners([back, middle]).length === 2
 
   return backWinsOrDraw
 }
@@ -442,7 +443,8 @@ const SUIT_SYMBOL = { S: '♠', H: '♥', D: '♦', C: '♣' }
 const RED_SUITS = new Set(['H', 'D'])
 
 function Card({ rank, suit, faceDown = false }: CardProps) {
-  if (faceDown) return <CardBack />
+  if (faceDown)
+    return <CardBack />
 
   return (
     <svg
@@ -502,8 +504,12 @@ function Card({ rank, suit, faceDown = false }: CardProps) {
 ```tsx
 // User drags a card from hand → drops into Group 1 slot
 <DndContext onDragEnd={handleDragEnd}>
-  <Hand cards={unassignedCards} /> {/* draggable source */}
-  <GroupSlot group={1} maxCards={5} /> {/* droppable target */}
+  <Hand cards={unassignedCards} />
+  {' '}
+  {/* draggable source */}
+  <GroupSlot group={1} maxCards={5} />
+  {' '}
+  {/* droppable target */}
   <GroupSlot group={2} maxCards={5} />
   <GroupSlot group={3} maxCards={3} />
 </DndContext>
@@ -558,23 +564,23 @@ The foul check runs live — if the arrangement is invalid, the Submit button is
 // packages/shared/src/types.ts
 
 type Suit = 'S' | 'H' | 'D' | 'C' // Spades, Hearts, Diamonds, Clubs
-type Rank =
-  | '2'
-  | '3'
-  | '4'
-  | '5'
-  | '6'
-  | '7'
-  | '8'
-  | '9'
-  | 'T'
-  | 'J'
-  | 'Q'
-  | 'K'
-  | 'A'
+type Rank
+  = | '2'
+    | '3'
+    | '4'
+    | '5'
+    | '6'
+    | '7'
+    | '8'
+    | '9'
+    | 'T'
+    | 'J'
+    | 'Q'
+    | 'K'
+    | 'A'
 // Note: use 'T' for 10 — aligns with pokersolver's format
 
-type Card = {
+interface Card {
   id: string // rank + suit, e.g. "AS", "TH", "2C", "KD"
   rank: Rank
   suit: Suit
@@ -584,7 +590,7 @@ type Card = {
 ### Player Arrangement
 
 ```typescript
-type PlayerArrangement = {
+interface PlayerArrangement {
   playerId: string
   group1: [Card, Card, Card, Card, Card] // Back — must be strongest
   group2: [Card, Card, Card, Card, Card] // Middle
@@ -596,10 +602,10 @@ type PlayerArrangement = {
 
 ```typescript
 // Set by room creator when creating the room
-type GameMode =
-  | { type: 'single' } // 1 round
-  | { type: 'best_of'; rounds: 3 | 5 | 7 } // BO3 / BO5 / BO7
-  | { type: 'custom'; roundCount: number } // any fixed number
+type GameMode
+  = | { type: 'single' } // 1 round
+    | { type: 'best_of', rounds: 3 | 5 | 7 } // BO3 / BO5 / BO7
+    | { type: 'custom', roundCount: number } // any fixed number
 ```
 
 ### Room
@@ -607,13 +613,13 @@ type GameMode =
 ```typescript
 type RoomStatus = 'waiting' | 'arranging' | 'locked' | 'finished'
 
-type Player = {
+interface Player {
   id: string
   name: string
   connected: boolean
 }
 
-type Room = {
+interface Room {
   code: string
   status: RoomStatus
   players: Player[] // max 2 for MVP; array supports 4-player future
@@ -629,7 +635,7 @@ type Room = {
 ```typescript
 type GroupResult = 'p1' | 'p2' | 'draw'
 
-type GroupComparison = {
+interface GroupComparison {
   result: GroupResult
   p1Hand: string // e.g. "Full House, Queens full of Nines"
   p2Hand: string
@@ -637,7 +643,7 @@ type GroupComparison = {
   p2Foul: boolean
 }
 
-type RoundResult = {
+interface RoundResult {
   group1: GroupComparison
   group2: GroupComparison
   group3: GroupComparison
@@ -653,7 +659,7 @@ type RoundResult = {
 }
 
 // Accumulates across rounds for multi-round modes
-type SessionResult = {
+interface SessionResult {
   mode: GameMode
   rounds: RoundResult[]
   p1RoundsWon: number
@@ -938,22 +944,25 @@ DATABASE_PATH=/data/binh13.db   # mounted Fly volume path in prod; ./dev.db loca
 
 ```toml
 app = "binh-13"
-primary_region = "sin"  # Singapore — closest to Vietnam
+primary_region = "sin" # Singapore — closest to Vietnam
 
 [build]
-  dockerfile = "apps/server/Dockerfile"
+dockerfile = "apps/server/Dockerfile"
 
 [[services]]
-  protocol = "tcp"
-  internal_port = 8080
+protocol = "tcp"
+internal_port = 8080
 
-  [[services.ports]]
-    port = 443
-    handlers = ["tls", "http"]
+[[services.ports]]
+port = 443
+handlers = [
+  "tls",
+  "http"
+]
 
-  [services.concurrency]
-    type = "connections"
-    hard_limit = 100
+[services.concurrency]
+type = "connections"
+hard_limit = 100
 ```
 
 ---

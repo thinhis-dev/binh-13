@@ -1,14 +1,14 @@
-import { Hand } from 'pokersolver'
 import type { Card } from '@binh-13/shared'
+import { Hand } from 'pokersolver'
 
 // Re-export shared 3-card evaluator for convenience
 export {
-  evaluateThreeCard,
   compareThreeCard,
-  THREE_CARD_CATEGORY_NAME,
+  evaluateThreeCard,
   RANK_VALUE,
-  type ThreeCardRank,
+  THREE_CARD_CATEGORY_NAME,
   type ThreeCardCategory,
+  type ThreeCardRank,
 } from '@binh-13/shared'
 
 /**
@@ -40,7 +40,8 @@ export function compareFiveCard(a: Card[], b: Card[]): -1 | 0 | 1 {
   const handA = evaluateFiveCard(a)
   const handB = evaluateFiveCard(b)
   const winners = Hand.winners([handA, handB])
-  if (winners.length === 2) return 0
+  if (winners.length === 2)
+    return 0
   return winners[0] === handA ? 1 : -1
 }
 

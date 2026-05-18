@@ -1,6 +1,6 @@
+import { EVENTS } from '@binh-13/shared'
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { EVENTS } from '@binh-13/shared'
 import { ensureSocketConnected, socket } from '@/lib/socket'
 import { useSocket } from '../useSocket'
 

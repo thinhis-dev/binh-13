@@ -1,6 +1,6 @@
+import type { Card } from '@binh-13/shared'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { Card } from '@binh-13/shared'
 import { ResultCardRow } from '../ResultCardRow'
 
 function makeCard(rank: Card['rank'], suit: Card['suit']): Card {
@@ -16,7 +16,7 @@ const fiveCards: Card[] = [
   makeCard('6', 'S'),
 ]
 
-describe('ResultCardRow', () => {
+describe('resultCardRow', () => {
   it('renders all cards in the row', () => {
     render(
       <ResultCardRow

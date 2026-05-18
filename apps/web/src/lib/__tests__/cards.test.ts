@@ -1,13 +1,13 @@
-import { describe, expect, it } from 'vitest'
 import type { Card } from '@binh-13/shared'
+import { describe, expect, it } from 'vitest'
 import {
   RANK_LABEL,
   RANK_VALUE,
   RED_SUITS,
+  sortCards,
   SUIT_LABEL,
   SUIT_SYMBOL,
   SUIT_VALUE,
-  sortCards,
   toPokerSolver,
 } from '../cards'
 
@@ -27,7 +27,7 @@ describe('card helpers', () => {
   })
 })
 
-describe('SUIT_VALUE', () => {
+describe('sUIT_VALUE', () => {
   it('orders suits S > H > D > C (bridge convention)', () => {
     expect(SUIT_VALUE.S).toBeGreaterThan(SUIT_VALUE.H)
     expect(SUIT_VALUE.H).toBeGreaterThan(SUIT_VALUE.D)
@@ -62,7 +62,7 @@ describe('sortCards', () => {
   it('sorts all four suits of the same rank: S H D C', () => {
     const input = [c('2C'), c('2D'), c('2H'), c('2S')]
     const result = sortCards(input)
-    expect(result.map((card) => card.id)).toEqual(['2S', '2H', '2D', '2C'])
+    expect(result.map(card => card.id)).toEqual(['2S', '2H', '2D', '2C'])
   })
 
   it('sorts a full 13-card hand: A high → 2 low, suit as tiebreak', () => {
@@ -97,13 +97,13 @@ describe('sortCards', () => {
   it('correctly orders face cards: A K Q J T', () => {
     const input = [c('TH'), c('JD'), c('QC'), c('KS'), c('AS')]
     const sorted = sortCards(input)
-    expect(sorted.map((card) => card.rank)).toEqual(['A', 'K', 'Q', 'J', 'T'])
+    expect(sorted.map(card => card.rank)).toEqual(['A', 'K', 'Q', 'J', 'T'])
   })
 
   it('handles already-sorted input without changing order', () => {
     const input = [c('AS'), c('KS'), c('QS')]
     const sorted = sortCards(input)
-    expect(sorted.map((card) => card.id)).toEqual(['AS', 'KS', 'QS'])
+    expect(sorted.map(card => card.id)).toEqual(['AS', 'KS', 'QS'])
   })
 
   it('does not mutate the original array', () => {

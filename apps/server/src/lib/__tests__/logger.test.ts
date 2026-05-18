@@ -9,7 +9,8 @@ describe('logger', () => {
 
     if (originalLogLevel === undefined) {
       delete process.env.LOG_LEVEL
-    } else {
+    }
+    else {
       process.env.LOG_LEVEL = originalLogLevel
     }
 

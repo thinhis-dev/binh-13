@@ -5,9 +5,9 @@ import type {
   RoundResult,
 } from '@binh-13/shared'
 import {
-  THREE_CARD_CATEGORY_NAME,
   compareThreeCard,
   evaluateThreeCard,
+  THREE_CARD_CATEGORY_NAME,
 } from '@binh-13/shared'
 import { compareFiveCard, describeFiveCard } from './evaluator'
 import { validateArrangement } from './foulCheck'
@@ -49,11 +49,13 @@ function buildFoulResult(
     groupResult = 'draw'
     p1Score = 0
     p2Score = 0
-  } else if (p1Foul) {
+  }
+  else if (p1Foul) {
     groupResult = 'p2'
     p1Score = 0
     p2Score = 3
-  } else {
+  }
+  else {
     groupResult = 'p1'
     p1Score = 3
     p2Score = 0
@@ -67,8 +69,8 @@ function buildFoulResult(
     p2Foul,
   }
 
-  const winner: RoundResult['winner'] =
-    groupResult === 'p1' ? 'p1' : groupResult === 'p2' ? 'p2' : 'draw'
+  const winner: RoundResult['winner']
+    = groupResult === 'p1' ? 'p1' : groupResult === 'p2' ? 'p2' : 'draw'
 
   return {
     group1: {
@@ -113,12 +115,14 @@ function buildNormalResult(
   let p1Score = 0
   let p2Score = 0
   for (const g of [group1, group2, group3]) {
-    if (g.result === 'p1') p1Score++
-    else if (g.result === 'p2') p2Score++
+    if (g.result === 'p1')
+      p1Score++
+    else if (g.result === 'p2')
+      p2Score++
   }
 
-  const winner: RoundResult['winner'] =
-    p1Score > p2Score ? 'p1' : p2Score > p1Score ? 'p2' : 'draw'
+  const winner: RoundResult['winner']
+    = p1Score > p2Score ? 'p1' : p2Score > p1Score ? 'p2' : 'draw'
 
   return {
     group1,
@@ -134,8 +138,10 @@ function buildNormalResult(
 }
 
 function toGroupResult(cmp: -1 | 0 | 1): GroupResult {
-  if (cmp === 1) return 'p1'
-  if (cmp === -1) return 'p2'
+  if (cmp === 1)
+    return 'p1'
+  if (cmp === -1)
+    return 'p2'
   return 'draw'
 }
 

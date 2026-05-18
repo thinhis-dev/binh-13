@@ -1,6 +1,14 @@
-import { EVENTS } from '@binh-13/shared'
 import type { Server, Socket } from 'socket.io'
+import { EVENTS } from '@binh-13/shared'
 import { z } from 'zod'
+import { triggerGameStart } from '../game/gameEvents'
+import { createChildLogger } from '../lib/logger'
+import {
+  createSession,
+  getSession,
+  getSessionBySocketId,
+  updateSocketId,
+} from '../session/sessionManager'
 import {
   clearRoom,
   createRoom,
@@ -10,20 +18,12 @@ import {
   leaveRoom,
   toPublicRoom,
 } from './roomManager'
-import {
-  createSession,
-  getSession,
-  getSessionBySocketId,
-  updateSocketId,
-} from '../session/sessionManager'
-import { createChildLogger } from '../lib/logger'
-import { triggerGameStart } from '../game/gameEvents'
 
 const roomCodeSchema = z
   .string()
   .trim()
-  .regex(/^[A-Za-z0-9]{6}$/, 'Room code must be 6 alphanumeric characters')
-  .transform((code) => code.toUpperCase())
+  .regex(/^[A-Z0-9]{6}$/i, 'Room code must be 6 alphanumeric characters')
+  .transform(code => code.toUpperCase())
 
 const sessionCreateSchema = z.object({
   name: z
@@ -59,7 +59,8 @@ export function registerRoomEvents(io: Server): void {
     socket.on(EVENTS.SESSION_CREATE, (payload) => {
       log.debug({ event: EVENTS.SESSION_CREATE }, 'Socket event received')
       const data = parsePayload(socket, sessionCreateSchema, payload)
-      if (!data) return
+      if (!data)
+        return
 
       const playerId = createSession(data.name, socket.id)
       socket.emit(EVENTS.SESSION_CREATED, { playerId, name: data.name })
@@ -69,7 +70,8 @@ export function registerRoomEvents(io: Server): void {
     socket.on(EVENTS.ROOM_CREATE, (payload) => {
       log.debug({ event: EVENTS.ROOM_CREATE }, 'Socket event received')
       const data = parsePayload(socket, playerSchema, payload)
-      if (!data || !assertSession(socket, data.playerId)) return
+      if (!data || !assertSession(socket, data.playerId))
+        return
 
       updateSocketId(data.playerId, socket.id)
       const code = createRoom(data.playerId)
@@ -83,7 +85,8 @@ export function registerRoomEvents(io: Server): void {
     socket.on(EVENTS.ROOM_JOIN, (payload) => {
       log.debug({ event: EVENTS.ROOM_JOIN }, 'Socket event received')
       const data = parsePayload(socket, roomActionSchema, payload)
-      if (!data || !assertSession(socket, data.playerId)) return
+      if (!data || !assertSession(socket, data.playerId))
+        return
 
       updateSocketId(data.playerId, socket.id)
       const joined = joinRoom(data.code, data.playerId)
@@ -112,7 +115,8 @@ export function registerRoomEvents(io: Server): void {
     socket.on(EVENTS.ROOM_LEAVE, (payload) => {
       log.debug({ event: EVENTS.ROOM_LEAVE }, 'Socket event received')
       const data = parsePayload(socket, roomActionSchema, payload)
-      if (!data || !assertSession(socket, data.playerId)) return
+      if (!data || !assertSession(socket, data.playerId))
+        return
 
       const room = getRoom(data.code)
       if (!room || !isPlayerInRoom(room, data.playerId)) {
@@ -129,18 +133,20 @@ export function registerRoomEvents(io: Server): void {
       io.to(data.code).emit(EVENTS.ROOM_LEFT, { playerId: data.playerId })
 
       const updatedRoom = getRoom(data.code)
-      if (updatedRoom) emitRoomState(io, data.code)
+      if (updatedRoom)
+        emitRoomState(io, data.code)
       log.info({ playerId: data.playerId, roomCode: data.code }, 'Room left')
     })
 
     socket.on(EVENTS.ROOM_MESSAGE, (payload) => {
       log.debug({ event: EVENTS.ROOM_MESSAGE }, 'Socket event received')
       const data = parsePayload(socket, roomMessageSchema, payload)
-      if (!data || !assertSession(socket, data.playerId)) return
+      if (!data || !assertSession(socket, data.playerId))
+        return
 
       const room = getRoom(data.code)
       const player = room?.players.find(
-        (candidate) => candidate.playerId === data.playerId,
+        candidate => candidate.playerId === data.playerId,
       )
       if (!room || !player) {
         log.warn(
@@ -166,7 +172,8 @@ export function registerRoomEvents(io: Server): void {
     socket.on(EVENTS.ROOM_CLEAR, (payload) => {
       log.debug({ event: EVENTS.ROOM_CLEAR }, 'Socket event received')
       const data = parsePayload(socket, roomActionSchema, payload)
-      if (!data || !assertSession(socket, data.playerId)) return
+      if (!data || !assertSession(socket, data.playerId))
+        return
 
       const room = getRoom(data.code)
       if (!room) {
@@ -206,7 +213,8 @@ function parsePayload<T extends z.ZodTypeAny>(
   payload: unknown,
 ): EventPayload<T> | undefined {
   const result = schema.safeParse(payload)
-  if (result.success) return result.data
+  if (result.success)
+    return result.data
 
   createChildLogger({ socketId: socket.id }).warn(
     { issues: result.error.issues },
@@ -217,7 +225,8 @@ function parsePayload<T extends z.ZodTypeAny>(
 }
 
 function assertSession(socket: Socket, playerId: number): boolean {
-  if (getSession(playerId)) return true
+  if (getSession(playerId))
+    return true
 
   createChildLogger({ socketId: socket.id }).warn(
     { playerId },
@@ -229,7 +238,8 @@ function assertSession(socket: Socket, playerId: number): boolean {
 
 function emitRoomState(io: Server, code: string): void {
   const room = getRoom(code)
-  if (!room) return
+  if (!room)
+    return
 
   io.to(code).emit(EVENTS.ROOM_STATE, { room: toPublicRoom(room) })
 }
@@ -242,12 +252,13 @@ function isPlayerInRoom(
   room: NonNullable<ReturnType<typeof getRoom>>,
   playerId: number,
 ): boolean {
-  return room.players.some((player) => player.playerId === playerId)
+  return room.players.some(player => player.playerId === playerId)
 }
 
 function leaveSocketRoom(io: Server, code: string): void {
   const room = io.sockets.adapter.rooms.get(code)
-  if (!room) return
+  if (!room)
+    return
 
   for (const socketId of room) {
     io.sockets.sockets.get(socketId)?.leave(code)
@@ -256,10 +267,12 @@ function leaveSocketRoom(io: Server, code: string): void {
 
 function handleDisconnect(io: Server, socket: Socket): void {
   const session = getSessionBySocketId(socket.id)
-  if (!session) return
+  if (!session)
+    return
 
   const room = getRoomByPlayer(session.playerId)
-  if (!room) return
+  if (!room)
+    return
 
   leaveRoom(room.code, session.playerId)
   io.to(room.code).emit(EVENTS.ROOM_LEFT, { playerId: session.playerId })

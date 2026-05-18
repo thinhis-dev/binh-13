@@ -1,16 +1,16 @@
-import { useCallback, useEffect, useState } from 'react'
-import { EVENTS } from '@binh-13/shared'
 import type { Card, RoundResult } from '@binh-13/shared'
+import { EVENTS } from '@binh-13/shared'
+import { useCallback, useEffect, useState } from 'react'
 import { ensureSocketConnected, socket } from '@/lib/socket'
 import { useGameStore } from '@/stores/gameStore'
 
 export function useSocket() {
   const [connected, setConnected] = useState(socket.connected)
-  const setHand = useGameStore((s) => s.setHand)
-  const setTimer = useGameStore((s) => s.setTimer)
-  const setTimerExpired = useGameStore((s) => s.setTimerExpired)
-  const setOpponentSubmitted = useGameStore((s) => s.setOpponentSubmitted)
-  const setResult = useGameStore((s) => s.setResult)
+  const setHand = useGameStore(s => s.setHand)
+  const setTimer = useGameStore(s => s.setTimer)
+  const setTimerExpired = useGameStore(s => s.setTimerExpired)
+  const setOpponentSubmitted = useGameStore(s => s.setOpponentSubmitted)
+  const setResult = useGameStore(s => s.setResult)
 
   const createSession = useCallback((name: string) => {
     ensureSocketConnected()
@@ -64,7 +64,7 @@ export function useSocket() {
   useEffect(() => {
     const handleConnect = () => setConnected(true)
     const handleDisconnect = () => setConnected(false)
-    const handleDealt = (payload: { hand: Card[]; timerSeconds: number }) => {
+    const handleDealt = (payload: { hand: Card[], timerSeconds: number }) => {
       setHand(payload.hand)
       setTimer(payload.timerSeconds)
     }

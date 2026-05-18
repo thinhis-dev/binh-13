@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { HandArea } from '@/components/game/HandArea'
 import { MOCK_HAND } from '@/lib/mockCards'
 
-describe('HandArea', () => {
+describe('handArea', () => {
   it('renders all cards in hand', () => {
     render(
       <HandArea
@@ -54,7 +54,7 @@ describe('HandArea', () => {
     expect(screen.getByTestId('hand-area')).toHaveClass('border-emerald-500')
   })
 
-  describe('Sort button', () => {
+  describe('sort button', () => {
     it('renders the Sort button when hand has cards', () => {
       render(
         <HandArea

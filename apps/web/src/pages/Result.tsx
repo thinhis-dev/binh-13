@@ -1,10 +1,10 @@
 import { useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
 import { ResultGroupDisplay } from '@/components/game/ResultGroupDisplay'
+import { Button } from '@/components/ui/button'
+import { useSocket } from '@/hooks/useSocket'
 import { useGameStore } from '@/stores/gameStore'
 import { useSessionStore } from '@/stores/sessionStore'
-import { useSocket } from '@/hooks/useSocket'
 
 type PlayerSide = 'p1' | 'p2'
 
@@ -13,10 +13,10 @@ const GROUP_LABELS = ['Back (5)', 'Middle (5)', 'Front (3)'] as const
 export default function Result() {
   const navigate = useNavigate()
   const { code } = useParams<{ code: string }>()
-  const result = useGameStore((s) => s.result)
-  const playerId = useSessionStore((s) => s.playerId)
+  const result = useGameStore(s => s.result)
+  const playerId = useSessionStore(s => s.playerId)
   const { leaveRoom } = useSocket()
-  const reset = useGameStore((s) => s.reset)
+  const reset = useGameStore(s => s.reset)
 
   const mySide: PlayerSide = useMemo(
     () => (result?.arrangements.p1.playerId === playerId ? 'p1' : 'p2'),
@@ -35,7 +35,8 @@ export default function Result() {
   }, [reset, navigate, code])
 
   const handleLeave = useCallback(() => {
-    if (playerId && code) leaveRoom(playerId, code)
+    if (playerId && code)
+      leaveRoom(playerId, code)
     reset()
     navigate('/')
   }, [playerId, code, leaveRoom, reset, navigate])
@@ -72,13 +73,17 @@ export default function Result() {
     <div className="mx-auto flex min-h-screen w-full max-w-lg flex-col items-center justify-center gap-6 p-4">
       {/* Winner / Loser banner */}
       <div className="text-center">
-        {isDraw ? (
-          <h1 className="text-3xl font-bold text-yellow-600">Draw!</h1>
-        ) : didWin ? (
-          <h1 className="text-3xl font-bold text-green-600">You Win! 🎉</h1>
-        ) : (
-          <h1 className="text-3xl font-bold text-red-500">You Lose</h1>
-        )}
+        {isDraw
+          ? (
+              <h1 className="text-3xl font-bold text-yellow-600">Draw!</h1>
+            )
+          : didWin
+            ? (
+                <h1 className="text-3xl font-bold text-green-600">You Win! 🎉</h1>
+              )
+            : (
+                <h1 className="text-3xl font-bold text-red-500">You Lose</h1>
+              )}
 
         {isFoul && (
           <p className="mt-1 text-sm text-red-500">

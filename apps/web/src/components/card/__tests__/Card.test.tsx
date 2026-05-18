@@ -1,10 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { Card } from '@/components/card/Card'
-import { MOCK_HAND } from '@/lib/mockCards'
 import { SUIT_SYMBOL } from '@/lib/cards'
+import { MOCK_HAND } from '@/lib/mockCards'
 
-describe('Card', () => {
+describe('card', () => {
   it('renders rank and suit symbol', () => {
     render(<Card card={MOCK_HAND[0]} />)
 

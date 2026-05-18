@@ -1,21 +1,27 @@
 {
   "name": "binh-13",
   "private": true,
+  "packageManager": "pnpm@11.1.1",
   "scripts": {
     "dev": "pnpm --parallel --filter @binh-13/server --filter @binh-13/web dev",
     "build": "pnpm --filter @binh-13/shared build && pnpm --parallel --filter @binh-13/server --filter @binh-13/web build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "test:coverage": "pnpm -r test:coverage",
-    "lint": "pnpm -r lint",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "clean:coverage": "node scripts/clean-coverage.mjs",
     "hooks:install": "node scripts/install-git-hooks.mjs",
     "prepare": "pnpm hooks:install"
   },
-  "devDependencies": {
-    "typescript": "^5.8.3"
-  },
   "dependencies": {
     "pokersolver": "^2.1.4"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^9.0.0",
+    "@eslint-react/eslint-plugin": "^5.8.0",
+    "eslint": "^10.4.0",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "typescript": "^5.8.3"
   }
 }

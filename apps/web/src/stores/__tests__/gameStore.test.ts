@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest'
 import type { Room, RoundResult } from '@binh-13/shared'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { useGameStore } from '../gameStore'
 
 const room: Room = {

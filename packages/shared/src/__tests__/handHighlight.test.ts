@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
 import type { Card } from '../types'
+import { describe, expect, it } from 'vitest'
 import { getHighlightedCardIds } from '../handHighlight'
 
 function card(rank: string, suit: string): Card {
@@ -196,7 +196,7 @@ describe('getHighlightedCardIds — 3-card hands', () => {
 // ─── Edge cases ───────────────────────────────────────────────────────────────
 
 describe('getHighlightedCardIds — edge cases', () => {
-  it('Four of a Kind with ace kicker — only 4 highlighted', () => {
+  it('four of a Kind with ace kicker — only 4 highlighted', () => {
     const cards = [
       card('A', 'S'),
       card('A', 'H'),
@@ -209,7 +209,7 @@ describe('getHighlightedCardIds — edge cases', () => {
     expect(result.has('KS')).toBe(false)
   })
 
-  it('Two Pair with high kicker — kicker not highlighted', () => {
+  it('two Pair with high kicker — kicker not highlighted', () => {
     const cards = [
       card('A', 'S'),
       card('A', 'H'),
@@ -222,7 +222,7 @@ describe('getHighlightedCardIds — edge cases', () => {
     expect(result.has('QD')).toBe(false)
   })
 
-  it('Pair of twos — lowest pair still highlights 2 cards', () => {
+  it('pair of twos — lowest pair still highlights 2 cards', () => {
     const cards = [
       card('2', 'S'),
       card('2', 'H'),

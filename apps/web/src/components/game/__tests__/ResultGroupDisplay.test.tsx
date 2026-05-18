@@ -1,6 +1,6 @@
+import type { Card, GroupComparison } from '@binh-13/shared'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { Card, GroupComparison } from '@binh-13/shared'
 import { ResultGroupDisplay } from '../ResultGroupDisplay'
 
 function makeCard(rank: Card['rank'], suit: Card['suit']): Card {
@@ -48,7 +48,7 @@ function makeComparison(
   }
 }
 
-describe('ResultGroupDisplay', () => {
+describe('resultGroupDisplay', () => {
   it('renders group label', () => {
     render(
       <ResultGroupDisplay

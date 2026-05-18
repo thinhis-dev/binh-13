@@ -145,8 +145,10 @@ import { RANK_VALUE } from './evaluator'
  * Returns a Set of card IDs that should be highlighted.
  */
 export function getHighlightedCardIds(cards: Card[]): Set<string> {
-  if (cards.length === 3) return getThreeCardHighlight(cards)
-  if (cards.length === 5) return getFiveCardHighlight(cards)
+  if (cards.length === 3)
+    return getThreeCardHighlight(cards)
+  if (cards.length === 5)
+    return getFiveCardHighlight(cards)
   throw new Error(`Expected 3 or 5 cards, got ${cards.length}`)
 }
 ```

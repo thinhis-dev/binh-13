@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { EVENTS } from '../events'
 
-describe('EVENTS', () => {
+describe('eVENTS', () => {
   it('keeps shared socket event names stable', () => {
     expect(EVENTS).toMatchObject({
       SESSION_CREATE: 'session:create',

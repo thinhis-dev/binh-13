@@ -134,8 +134,8 @@ pnpm --filter @binh-13/web add -D vitest @vitest/coverage-v8 @testing-library/re
 ### 3.3 Create `apps/web/src/__tests__/setup.ts`
 
 ```ts
-import '@testing-library/jest-dom'
 import { vi } from 'vitest'
+import '@testing-library/jest-dom'
 
 vi.mock('@/lib/socket', () => ({
   socket: { emit: vi.fn(), on: vi.fn(), off: vi.fn(), connected: false },
@@ -301,9 +301,8 @@ log.info({ socketId, playerId, roomCode, event }, 'player joined room')
   ```
 - Add unhandled rejection handler:
   ```ts
-  process.on('unhandledRejection', (err) =>
-    logger.fatal({ err }, 'unhandledRejection'),
-  )
+  process.on('unhandledRejection', err =>
+    logger.fatal({ err }, 'unhandledRejection'),)
   ```
 
 **`apps/server/src/db.ts`**

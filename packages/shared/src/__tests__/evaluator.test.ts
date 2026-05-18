@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
 import type { Card } from '../types'
+import { describe, expect, it } from 'vitest'
 import { compareThreeCard, evaluateThreeCard, RANK_VALUE } from '../evaluator'
 
 function card(rank: string, suit: string): Card {
@@ -28,7 +28,7 @@ describe('evaluateThreeCard', () => {
       card('5', 'C'),
     ])
     expect(result.category).toBe(1)
-    expect(result.tiebreakers).toEqual([RANK_VALUE['J'], RANK_VALUE['5']])
+    expect(result.tiebreakers).toEqual([RANK_VALUE.J, RANK_VALUE['5']])
   })
 
   it('detects High Card', () => {
@@ -39,8 +39,8 @@ describe('evaluateThreeCard', () => {
     ])
     expect(result.category).toBe(0)
     expect(result.tiebreakers).toEqual([
-      RANK_VALUE['A'],
-      RANK_VALUE['K'],
+      RANK_VALUE.A,
+      RANK_VALUE.K,
       RANK_VALUE['3'],
     ])
   })
@@ -64,7 +64,7 @@ describe('evaluateThreeCard', () => {
 })
 
 describe('compareThreeCard', () => {
-  it('Pair with higher kicker wins', () => {
+  it('pair with higher kicker wins', () => {
     const a = evaluateThreeCard([
       card('Q', 'S'),
       card('Q', 'H'),
@@ -78,7 +78,7 @@ describe('compareThreeCard', () => {
     expect(compareThreeCard(a, b)).toBe(1)
   })
 
-  it('Three of a Kind beats One Pair', () => {
+  it('three of a Kind beats One Pair', () => {
     const a = evaluateThreeCard([
       card('3', 'S'),
       card('3', 'H'),
@@ -92,7 +92,7 @@ describe('compareThreeCard', () => {
     expect(compareThreeCard(a, b)).toBe(1)
   })
 
-  it('Three of a Kind beats High Card', () => {
+  it('three of a Kind beats High Card', () => {
     const a = evaluateThreeCard([
       card('2', 'S'),
       card('2', 'H'),
@@ -106,7 +106,7 @@ describe('compareThreeCard', () => {
     expect(compareThreeCard(a, b)).toBe(1)
   })
 
-  it('One Pair beats High Card', () => {
+  it('one Pair beats High Card', () => {
     const a = evaluateThreeCard([
       card('2', 'S'),
       card('2', 'H'),
@@ -120,7 +120,7 @@ describe('compareThreeCard', () => {
     expect(compareThreeCard(a, b)).toBe(1)
   })
 
-  it('High Card tiebreaker — second card decides', () => {
+  it('high Card tiebreaker — second card decides', () => {
     const a = evaluateThreeCard([
       card('A', 'S'),
       card('Q', 'H'),
@@ -134,7 +134,7 @@ describe('compareThreeCard', () => {
     expect(compareThreeCard(a, b)).toBe(1) // Q > J
   })
 
-  it('High Card tiebreaker — third card decides', () => {
+  it('high Card tiebreaker — third card decides', () => {
     const a = evaluateThreeCard([
       card('A', 'S'),
       card('K', 'H'),
@@ -148,7 +148,7 @@ describe('compareThreeCard', () => {
     expect(compareThreeCard(a, b)).toBe(1) // 4 > 3
   })
 
-  it('Exact same ranks → draw', () => {
+  it('exact same ranks → draw', () => {
     const a = evaluateThreeCard([
       card('A', 'S'),
       card('K', 'H'),
@@ -162,7 +162,7 @@ describe('compareThreeCard', () => {
     expect(compareThreeCard(a, b)).toBe(0)
   })
 
-  it('Identical trips → draw (suits irrelevant)', () => {
+  it('identical trips → draw (suits irrelevant)', () => {
     const a = evaluateThreeCard([
       card('7', 'S'),
       card('7', 'H'),
@@ -176,7 +176,7 @@ describe('compareThreeCard', () => {
     expect(compareThreeCard(a, b)).toBe(0)
   })
 
-  it('Pair tiebreak — same pair and same kicker → draw', () => {
+  it('pair tiebreak — same pair and same kicker → draw', () => {
     const a = evaluateThreeCard([
       card('J', 'S'),
       card('J', 'H'),

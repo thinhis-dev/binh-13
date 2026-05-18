@@ -111,14 +111,14 @@ Replace the current stubs with the full implementation from PLAN.md § 3.
 
 ```ts
 export const RANK_VALUE: Record<string, number> = {
-  '2': 2,
-  '3': 3,
-  '4': 4,
-  '5': 5,
-  '6': 6,
-  '7': 7,
-  '8': 8,
-  '9': 9,
+  2: 2,
+  3: 3,
+  4: 4,
+  5: 5,
+  6: 6,
+  7: 7,
+  8: 8,
+  9: 9,
   T: 10,
   J: 11,
   Q: 12,
@@ -171,12 +171,12 @@ pnpm --filter server add -D @types/pokersolver
 Wraps `pokersolver` for 5-card hands and re-exports shared 3-card evaluator.
 
 ```ts
-import { Hand } from 'pokersolver'
 import type { Card } from '@binh-13/shared'
-import { evaluateThreeCard, compareThreeCard } from '@binh-13/shared'
+import { compareThreeCard, evaluateThreeCard } from '@binh-13/shared'
+import { Hand } from 'pokersolver'
 
 // Re-export shared evaluator for convenience
-export { evaluateThreeCard, compareThreeCard }
+export { compareThreeCard, evaluateThreeCard }
 
 /** Convert our Card format to pokersolver format: "AS" → "As" */
 export function toPokersolverFormat(card: Card): string {
@@ -195,7 +195,8 @@ export function compareFiveCard(a: Card[], b: Card[]): -1 | 0 | 1 {
   const handA = evaluateFiveCard(a)
   const handB = evaluateFiveCard(b)
   const winners = Hand.winners([handA, handB])
-  if (winners.length === 2) return 0
+  if (winners.length === 2)
+    return 0
   return winners[0] === handA ? 1 : -1
 }
 
@@ -293,7 +294,7 @@ export function quickFoulCheck(group1: Card[], group2: Card[]): boolean
 ### `apps/server/src/game/engine.ts`
 
 ```ts
-import type { Card, Suit, Rank } from '@binh-13/shared'
+import type { Card, Rank, Suit } from '@binh-13/shared'
 import crypto from 'node:crypto'
 
 const SUITS: Suit[] = ['S', 'H', 'D', 'C']
@@ -381,16 +382,16 @@ export function deal(playerCount: 2 | 3 | 4 = 2): Card[][] {
 
 ```ts
 import type {
+  GroupComparison,
   PlayerArrangement,
   RoundResult,
-  GroupComparison,
 } from '@binh-13/shared'
-import { compareFiveCard, describeFiveCard } from './evaluator'
 import {
-  evaluateThreeCard,
   compareThreeCard,
+  evaluateThreeCard,
   THREE_CARD_CATEGORY_NAME,
 } from '@binh-13/shared'
+import { compareFiveCard, describeFiveCard } from './evaluator'
 import { validateArrangement } from './foulCheck'
 
 export function compareRound(
@@ -466,7 +467,7 @@ ALTER TABLE rooms ADD COLUMN current_round INTEGER NOT NULL DEFAULT 1;
 In-memory state for active games:
 
 ```ts
-type GameInstance = {
+interface GameInstance {
   roomCode: string
   hands: Map<number, Card[]> // playerId → 13 dealt cards
   submissions: Map<number, PlayerArrangement> // playerId → submitted arrangement
@@ -575,14 +576,17 @@ function validateSubmittedCards(
     ...arrangement.group2,
     ...arrangement.group3,
   ]
-  if (submitted.length !== 13) return false
+  if (submitted.length !== 13)
+    return false
 
-  const submittedIds = new Set(submitted.map((c) => c.id))
-  if (submittedIds.size !== 13) return false // duplicates
+  const submittedIds = new Set(submitted.map(c => c.id))
+  if (submittedIds.size !== 13)
+    return false // duplicates
 
-  const dealtIds = new Set(dealtHand.map((c) => c.id))
+  const dealtIds = new Set(dealtHand.map(c => c.id))
   for (const id of submittedIds) {
-    if (!dealtIds.has(id)) return false // card not in dealt hand
+    if (!dealtIds.has(id))
+      return false // card not in dealt hand
   }
   return true
 }
@@ -619,7 +623,7 @@ socket.on(EVENTS.GAME_RESULT, (result: RoundResult) => {
 ### `apps/web/src/stores/gameStore.ts` — Add fields
 
 ```ts
-type GameState = {
+interface GameState {
   // ... existing fields ...
   opponentSubmitted: boolean
   submitted: boolean
@@ -634,12 +638,14 @@ Add computed properties that evaluate the front group in real-time:
 
 ```ts
 const frontEval = useMemo(() => {
-  if (state.group3.length !== 3) return null
+  if (state.group3.length !== 3)
+    return null
   return evaluateThreeCard(state.group3)
 }, [state.group3])
 
 const frontLabel = useMemo(() => {
-  if (!frontEval) return null
+  if (!frontEval)
+    return null
   return THREE_CARD_CATEGORY_NAME[frontEval.category]
 }, [frontEval])
 ```
@@ -665,11 +671,13 @@ Remove mock data fallback. Use `gameStore.hand` from the dealt event:
 
 ```tsx
 export default function Game() {
-  const hand = useGameStore((s) => s.hand)
-  const result = useGameStore((s) => s.result)
+  const hand = useGameStore(s => s.hand)
+  const result = useGameStore(s => s.result)
 
-  if (result) return <Navigate to={`/room/${code}/result`} />
-  if (hand.length === 0) return <WaitingForDeal />
+  if (result)
+    return <Navigate to={`/room/${code}/result`} />
+  if (hand.length === 0)
+    return <WaitingForDeal />
 
   return <GameBoard initialCards={hand} />
 }
@@ -684,7 +692,8 @@ export default function Game() {
 ```ts
 function startTimer(io: Server, roomCode: string, seconds: number): void {
   const game = getGame(roomCode)
-  if (!game) return
+  if (!game)
+    return
 
   game.timerSeconds = seconds
   game.timerHandle = setInterval(() => {
@@ -700,7 +709,8 @@ function startTimer(io: Server, roomCode: string, seconds: number): void {
 
 function handleTimerExpiry(io: Server, roomCode: string): void {
   const game = getGame(roomCode)
-  if (!game) return
+  if (!game)
+    return
 
   // For each player who hasn't submitted:
   // - If arrangement is somehow complete → auto-submit (not applicable since FE hasn't sent it)
@@ -724,7 +734,7 @@ function handleTimerExpiry(io: Server, roomCode: string): void {
 Show countdown in `GameBoard`:
 
 ```tsx
-const timer = useGameStore((s) => s.timerSeconds)
+const timer = useGameStore(s => s.timerSeconds)
 // Render: <span className={timer <= 10 ? 'text-red-500' : ''}>{timer}s</span>
 ```
 

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
 import type { Card } from '../types'
+import { describe, expect, it } from 'vitest'
 import { quickFoulCheck } from '../foulCheck'
 
 function card(rank: string, suit: string): Card {

@@ -1,15 +1,15 @@
-import { useCallback, useMemo, useState } from 'react'
 import type { Card } from '@binh-13/shared'
 import {
-  THREE_CARD_CATEGORY_NAME,
   evaluateThreeCard,
   quickFoulCheck,
+  THREE_CARD_CATEGORY_NAME,
 } from '@binh-13/shared'
+import { useCallback, useMemo, useState } from 'react'
 import { sortCards } from '@/lib/cards'
 
 export type GroupKey = 'group1' | 'group2' | 'group3'
 
-export type ArrangementState = {
+export interface ArrangementState {
   hand: Card[]
   group1: Card[]
   group2: Card[]
@@ -41,16 +41,16 @@ function buildInitialState(cards: Card[]): ArrangementState {
     group2: [],
     group3: [],
     selectedCardId: null,
-    originalOrder: cards.map((c) => c.id),
+    originalOrder: cards.map(c => c.id),
   }
 }
 
 function removeCard(cards: Card[], cardId: string) {
-  return cards.filter((card) => card.id !== cardId)
+  return cards.filter(card => card.id !== cardId)
 }
 
 function hasCard(cards: Card[], cardId: string) {
-  return cards.some((card) => card.id === cardId)
+  return cards.some(card => card.id === cardId)
 }
 
 export function useArrangement(initialCards?: Card[]) {
@@ -63,15 +63,15 @@ export function useArrangement(initialCards?: Card[]) {
   }, [])
 
   const selectCard = useCallback((id: string | null) => {
-    setState((current) => ({ ...current, selectedCardId: id }))
+    setState(current => ({ ...current, selectedCardId: id }))
   }, [])
 
   const assignToGroup = useCallback((groupKey: GroupKey, card: Card) => {
     setState((current) => {
       const group = current[groupKey]
       if (
-        group.length >= GROUP_CAPACITY[groupKey] ||
-        !hasCard(current.hand, card.id)
+        group.length >= GROUP_CAPACITY[groupKey]
+        || !hasCard(current.hand, card.id)
       ) {
         return current
       }
@@ -88,12 +88,13 @@ export function useArrangement(initialCards?: Card[]) {
   const removeFromGroup = useCallback((groupKey: GroupKey, card: Card) => {
     setState((current) => {
       const group = current[groupKey]
-      if (!hasCard(group, card.id)) return current
+      if (!hasCard(group, card.id))
+        return current
 
       const restoredHand = [...current.hand, card].sort(
         (a, b) =>
-          current.originalOrder.indexOf(a.id) -
-          current.originalOrder.indexOf(b.id),
+          current.originalOrder.indexOf(a.id)
+          - current.originalOrder.indexOf(b.id),
       )
 
       return {
@@ -128,7 +129,7 @@ export function useArrangement(initialCards?: Card[]) {
 
   /** Sort the hand cards by rank descending then suit descending. Clears selection. */
   const sortHand = useCallback(() => {
-    setState((current) => ({
+    setState(current => ({
       ...current,
       hand: sortCards(current.hand),
       selectedCardId: null,
@@ -137,19 +138,21 @@ export function useArrangement(initialCards?: Card[]) {
 
   const isComplete = useMemo(
     () =>
-      state.group1.length === GROUP_CAPACITY.group1 &&
-      state.group2.length === GROUP_CAPACITY.group2 &&
-      state.group3.length === GROUP_CAPACITY.group3,
+      state.group1.length === GROUP_CAPACITY.group1
+      && state.group2.length === GROUP_CAPACITY.group2
+      && state.group3.length === GROUP_CAPACITY.group3,
     [state.group1.length, state.group2.length, state.group3.length],
   )
 
   /** Live label for the front (3-card) group, or null if incomplete. */
   const frontLabel = useMemo(() => {
-    if (state.group3.length !== 3) return null
+    if (state.group3.length !== 3)
+      return null
     try {
       const rank = evaluateThreeCard(state.group3)
       return THREE_CARD_CATEGORY_NAME[rank.category]
-    } catch {
+    }
+    catch {
       return null
     }
   }, [state.group3])

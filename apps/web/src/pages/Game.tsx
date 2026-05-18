@@ -4,8 +4,8 @@ import { GameBoard } from '@/components/game/GameBoard'
 import { useGameStore } from '@/stores/gameStore'
 
 export default function Game() {
-  const hand = useGameStore((state) => state.hand)
-  const result = useGameStore((state) => state.result)
+  const hand = useGameStore(state => state.hand)
+  const result = useGameStore(state => state.result)
   const navigate = useNavigate()
   const { code } = useParams<{ code: string }>()
 

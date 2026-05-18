@@ -33,7 +33,7 @@ pages/Game.tsx
 `hooks/useArrangement.ts` (currently a placeholder) becomes the core state hook for this feature.
 
 ```ts
-type ArrangementState = {
+interface ArrangementState {
   hand: Card[] // unassigned cards remaining in hand
   group1: Card[] // Back   — 5 cards
   group2: Card[] // Middle — 5 cards
@@ -41,7 +41,7 @@ type ArrangementState = {
   selectedCardId: string | null
 }
 
-type ArrangementActions = {
+interface ArrangementActions {
   init: (cards: Card[]) => void
   selectCard: (id: string | null) => void
   assignToGroup: (groupKey: GroupKey, card: Card) => void
@@ -75,7 +75,7 @@ State lives **only in this hook** (not in `useGameStore`) — arrangement is loc
 ### `components/card/Card.tsx`
 
 ```tsx
-type CardProps = {
+interface CardProps {
   card: Card
   selected?: boolean
   onClick?: () => void
@@ -91,7 +91,7 @@ type CardProps = {
 ### `components/card/CardBack.tsx`
 
 ```tsx
-type CardBackProps = { size?: 'sm' | 'md' }
+interface CardBackProps { size?: 'sm' | 'md' }
 ```
 
 - Simple SVG with a decorative pattern (no rank/suit). Used for opponent placeholder.
@@ -99,7 +99,7 @@ type CardBackProps = { size?: 'sm' | 'md' }
 ### `components/game/HandArea.tsx`
 
 ```tsx
-type HandAreaProps = {
+interface HandAreaProps {
   cards: Card[]
   selectedCardId: string | null
   onCardClick: (card: Card) => void
@@ -112,7 +112,7 @@ type HandAreaProps = {
 ### `components/game/GroupSlot.tsx`
 
 ```tsx
-type GroupSlotProps = {
+interface GroupSlotProps {
   label: string // "Back (5)", "Middle (5)", "Front (3)"
   capacity: 5 | 3
   cards: Card[]
@@ -129,7 +129,7 @@ type GroupSlotProps = {
 ### `components/game/GroupPanel.tsx`
 
 ```tsx
-type GroupPanelProps = {
+interface GroupPanelProps {
   group1: Card[]
   group2: Card[]
   group3: Card[]
@@ -145,7 +145,7 @@ type GroupPanelProps = {
 ### `components/game/GameBoard.tsx`
 
 ```tsx
-type GameBoardProps = {
+interface GameBoardProps {
   initialCards: Card[] // 13 mocked cards
 }
 ```

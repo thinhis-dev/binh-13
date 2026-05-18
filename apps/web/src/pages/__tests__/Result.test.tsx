@@ -1,11 +1,11 @@
+import type { Card, PlayerArrangement, RoundResult } from '@binh-13/shared'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Card, PlayerArrangement, RoundResult } from '@binh-13/shared'
+import { socket } from '@/lib/socket'
 import { useGameStore } from '@/stores/gameStore'
 import { useSessionStore } from '@/stores/sessionStore'
-import { socket } from '@/lib/socket'
 import Result from '../Result'
 
 // ─── Test data ───────────────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ function renderResult(initialPath = '/room/ABCDEF/result') {
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
-describe('Result page', () => {
+describe('result page', () => {
   beforeEach(() => {
     useSessionStore.getState().setSession(1, 'Alice')
     useSessionStore.getState().setRoom('ABCDEF')
@@ -155,8 +155,8 @@ describe('Result page', () => {
 
     const scores = screen.getAllByText(/^[0-3]$/)
     // "You" score = 2, "Opponent" score = 1
-    expect(scores.map((el) => el.textContent)).toContain('2')
-    expect(scores.map((el) => el.textContent)).toContain('1')
+    expect(scores.map(el => el.textContent)).toContain('2')
+    expect(scores.map(el => el.textContent)).toContain('1')
   })
 
   it('renders all three group breakdown rows', () => {
@@ -183,7 +183,7 @@ describe('Result page', () => {
 
     const icons = screen.getAllByText(/^[✓✗]$/)
     // group1=p1 win (✓), group2=p2 win (✗), group3=p1 win (✓)
-    expect(icons.map((el) => el.textContent)).toEqual(['✓', '✗', '✓'])
+    expect(icons.map(el => el.textContent)).toEqual(['✓', '✗', '✓'])
   })
 
   it('navigates to lobby on Rematch click', async () => {

@@ -1,8 +1,8 @@
+import type { Card } from '@binh-13/shared'
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { Card } from '@binh-13/shared'
-import { MOCK_HAND } from '@/lib/mockCards'
 import { RANK_VALUE } from '@/lib/cards'
+import { MOCK_HAND } from '@/lib/mockCards'
 import { useArrangement } from '../useArrangement'
 
 const firstCard = MOCK_HAND[0]
@@ -52,7 +52,7 @@ describe('useArrangement', () => {
     expect(result.current.group1).toHaveLength(5)
     expect(result.current.hand).toHaveLength(8)
     expect(
-      result.current.hand.some((card) => card.id === MOCK_HAND[5].id),
+      result.current.hand.some(card => card.id === MOCK_HAND[5].id),
     ).toBe(true)
   })
 
@@ -63,7 +63,7 @@ describe('useArrangement', () => {
     act(() => result.current.removeFromGroup('group1', firstCard))
 
     expect(result.current.group1).toHaveLength(0)
-    expect(result.current.hand.some((card) => card.id === firstCard.id)).toBe(
+    expect(result.current.hand.some(card => card.id === firstCard.id)).toBe(
       true,
     )
   })
@@ -101,7 +101,7 @@ describe('useArrangement', () => {
       ...result.current.group2,
       ...result.current.group3,
     ]
-    expect(allCards.filter((card) => card.id === firstCard.id)).toHaveLength(1)
+    expect(allCards.filter(card => card.id === firstCard.id)).toHaveLength(1)
     expect(result.current.group2).toHaveLength(0)
   })
 

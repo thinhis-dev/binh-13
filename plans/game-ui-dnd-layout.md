@@ -157,7 +157,7 @@ dnd-kit handles keyboard DnD by default. No extra work needed. Ensure all dragga
 Define a type in `useArrangement.ts` or a new `dnd.ts` util file:
 
 ```ts
-export type DragData = {
+export interface DragData {
   card: Card
   source: 'hand' | GroupKey
 }

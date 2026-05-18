@@ -1,7 +1,7 @@
+import type { Card } from '@binh-13/shared'
 import { describe, expect, it } from 'vitest'
-import type { Card, PlayerArrangement } from '@binh-13/shared'
-import { validateSubmittedCards, createForfeitArrangement } from '../gameEvents'
 import { validateArrangement } from '../foulCheck'
+import { createForfeitArrangement, validateSubmittedCards } from '../gameEvents'
 
 // ─── Test data helpers ───────────────────────────────────────────────────────
 
@@ -110,8 +110,7 @@ describe('validateSubmittedCards', () => {
   it('rejects when all cards are foreign', () => {
     const hand = makeHand()
     const foreign = Array.from({ length: 13 }, (_, i) =>
-      makeCard(RANKS[i % 13], 'C'),
-    )
+      makeCard(RANKS[i % 13], 'C'))
     // Some may overlap with hand by chance, use a completely different set
     const fakeSuit: Card['suit'] = 'C'
     const fakeCards: Card[] = [
@@ -143,8 +142,8 @@ describe('createForfeitArrangement', () => {
     const allCards = [...result.group1, ...result.group2, ...result.group3]
     expect(allCards).toHaveLength(13)
 
-    const resultIds = new Set(allCards.map((c) => c.id))
-    const handIds = new Set(hand.map((c) => c.id))
+    const resultIds = new Set(allCards.map(c => c.id))
+    const handIds = new Set(hand.map(c => c.id))
     expect(resultIds).toEqual(handIds)
   })
 

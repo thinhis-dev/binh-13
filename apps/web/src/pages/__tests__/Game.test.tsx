@@ -1,7 +1,7 @@
+import type { Card, RoundResult } from '@binh-13/shared'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Card, RoundResult } from '@binh-13/shared'
 import { useGameStore } from '@/stores/gameStore'
 import { useSessionStore } from '@/stores/sessionStore'
 import Game from '../Game'
@@ -40,7 +40,7 @@ function renderGame(initialPath = '/room/ABCDEF/game') {
   )
 }
 
-describe('Game page', () => {
+describe('game page', () => {
   beforeEach(() => {
     useSessionStore.getState().setSession(1, 'Alice')
     useSessionStore.getState().setRoom('ABCDEF')

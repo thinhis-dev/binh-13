@@ -1,14 +1,13 @@
-import { EVENTS, GAME_TIMER_SECONDS } from '@binh-13/shared'
 import type { Card, PlayerArrangement } from '@binh-13/shared'
 import type { Server } from 'socket.io'
+import { EVENTS, GAME_TIMER_SECONDS, RANK_VALUE } from '@binh-13/shared'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { createChildLogger } from '../lib/logger'
-import { getSession } from '../session/sessionManager'
 import { getRoom, updateRoomStatus } from '../rooms/roomManager'
+import { getSession } from '../session/sessionManager'
 import { compareRound } from './compareRound'
 import { compareFiveCard } from './evaluator'
-import { RANK_VALUE } from '@binh-13/shared'
 import {
   allSubmitted,
   endGame,
@@ -45,8 +44,8 @@ const cardSchema = z.object({
 const roomCodeSchema = z
   .string()
   .trim()
-  .regex(/^[A-Za-z0-9]{6}$/)
-  .transform((c) => c.toUpperCase())
+  .regex(/^[A-Z0-9]{6}$/i)
+  .transform(c => c.toUpperCase())
 
 const gameSubmitSchema = z.object({
   playerId: z.number().int().positive(),
@@ -77,14 +76,17 @@ export function validateSubmittedCards(
     ...arrangement.group2,
     ...arrangement.group3,
   ]
-  if (submitted.length !== 13) return false
+  if (submitted.length !== 13)
+    return false
 
-  const submittedIds = new Set(submitted.map((c) => c.id))
-  if (submittedIds.size !== 13) return false // duplicates
+  const submittedIds = new Set(submitted.map(c => c.id))
+  if (submittedIds.size !== 13)
+    return false // duplicates
 
-  const dealtIds = new Set(dealtHand.map((c) => c.id))
+  const dealtIds = new Set(dealtHand.map(c => c.id))
   for (const id of submittedIds) {
-    if (!dealtIds.has(id)) return false
+    if (!dealtIds.has(id))
+      return false
   }
   return true
 }
@@ -125,7 +127,8 @@ function resolveRound(
   p2Arr: PlayerArrangement,
 ): void {
   const game = getGame(roomCode)
-  if (!game) return
+  if (!game)
+    return
 
   game.status = 'comparing'
   if (game.timerHandle !== null) {
@@ -157,7 +160,8 @@ function resolveRound(
 /** Starts the countdown timer and auto-resolves on expiry. */
 function startTimer(io: Server, roomCode: string): void {
   const game = getGame(roomCode)
-  if (!game) return
+  if (!game)
+    return
 
   let secondsLeft = game.timerSeconds
 
@@ -178,18 +182,20 @@ function startTimer(io: Server, roomCode: string): void {
 /** Handles timer expiry: auto-forfeits non-submitters and resolves the round. */
 export function handleTimerExpiry(io: Server, roomCode: string): void {
   const game = getGame(roomCode)
-  if (!game || game.status !== 'arranging') return
+  if (!game || game.status !== 'arranging')
+    return
 
   const ids = getPlayerIds(roomCode)
-  if (!ids) return
+  if (!ids)
+    return
   const [p1Id, p2Id] = ids
 
-  const p1Sub =
-    game.submissions.get(p1Id) ??
-    createForfeitArrangement(p1Id, game.hands.get(p1Id)!)
-  const p2Sub =
-    game.submissions.get(p2Id) ??
-    createForfeitArrangement(p2Id, game.hands.get(p2Id)!)
+  const p1Sub
+    = game.submissions.get(p1Id)
+      ?? createForfeitArrangement(p1Id, game.hands.get(p1Id)!)
+  const p2Sub
+    = game.submissions.get(p2Id)
+      ?? createForfeitArrangement(p2Id, game.hands.get(p2Id)!)
 
   log.info({ roomCode }, 'Timer expired — auto-resolving round')
   resolveRound(io, roomCode, p1Sub, p2Sub)
@@ -204,10 +210,11 @@ export function handleTimerExpiry(io: Server, roomCode: string): void {
 export function triggerGameStart(
   io: Server,
   roomCode: string,
-  players: Array<{ playerId: number; seat: 1 | 2 }>,
+  players: Array<{ playerId: number, seat: 1 | 2 }>,
   timerSeconds?: number,
 ): void {
-  if (players.length !== 2) return
+  if (players.length !== 2)
+    return
 
   const sorted = [...players].sort((a, b) => a.seat - b.seat)
   const p1Id = sorted[0].playerId
@@ -277,7 +284,7 @@ export function registerGameEvents(io: Server): void {
         return
       }
 
-      if (!room.players.some((p) => p.playerId === playerId)) {
+      if (!room.players.some(p => p.playerId === playerId)) {
         socket.emit(EVENTS.ERROR, { message: 'Not in this room' })
         return
       }

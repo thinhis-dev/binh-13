@@ -1,19 +1,19 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { EVENTS, GAME_TIMER_SECONDS } from '@binh-13/shared'
 import type { Card, PlayerArrangement, RoundResult } from '@binh-13/shared'
 import type { Socket } from 'socket.io-client'
+import { EVENTS, GAME_TIMER_SECONDS } from '@binh-13/shared'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTestServer } from '../../__tests__/helpers/createTestServer'
 import {
   createSocketClient,
   waitForEvent,
 } from '../../__tests__/helpers/socketClient'
-import { createForfeitArrangement } from '../gameEvents'
 import { compareFiveCard } from '../evaluator'
+import { createForfeitArrangement } from '../gameEvents'
 
-type SessionCreatedPayload = { playerId: number; name: string }
-type RoomPayload = { code: string }
-type GameDealtPayload = { hand: Card[]; timerSeconds: number }
-type ErrorPayload = { message: string }
+interface SessionCreatedPayload { playerId: number, name: string }
+interface RoomPayload { code: string }
+interface GameDealtPayload { hand: Card[], timerSeconds: number }
+interface ErrorPayload { message: string }
 
 describe('gameEvents integration', () => {
   let port = 0
@@ -132,7 +132,7 @@ describe('gameEvents integration', () => {
     s2.emit(EVENTS.ROOM_JOIN, { playerId: p2.playerId, code })
     const [d1, d2] = await Promise.all([p1Dealt, p2Dealt])
 
-    const ids1 = new Set(d1.hand.map((c) => c.id))
+    const ids1 = new Set(d1.hand.map(c => c.id))
     for (const card of d2.hand) {
       expect(ids1.has(card.id)).toBe(false)
     }
@@ -330,7 +330,7 @@ describe('gameEvents integration', () => {
     })
 
     // Wait a tick then try again
-    await new Promise((r) => setTimeout(r, 50))
+    await new Promise(r => setTimeout(r, 50))
 
     const err = waitForEvent<ErrorPayload>(s1, EVENTS.ERROR)
     s1.emit(EVENTS.GAME_SUBMIT, {

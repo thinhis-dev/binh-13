@@ -71,7 +71,7 @@ Displays a single group's comparison between two players:
 **Props:**
 
 ```ts
-type ResultGroupDisplayProps = {
+interface ResultGroupDisplayProps {
   groupLabel: string
   comparison: GroupComparison
   myCards: Card[]
@@ -89,7 +89,7 @@ Renders a row of cards with highlight support. Each card that is in the highligh
 **Props:**
 
 ```ts
-type ResultCardRowProps = {
+interface ResultCardRowProps {
   cards: Card[]
   highlightedIds: Set<string>
   outcome: 'win' | 'lose' | 'draw'

@@ -1,9 +1,9 @@
-import { memo } from 'react'
 import type { Card as CardType } from '@binh-13/shared'
-import { GroupSlot } from '@/components/game/GroupSlot'
 import type { GroupKey } from '@/hooks/useArrangement'
+import { memo } from 'react'
+import { GroupSlot } from '@/components/game/GroupSlot'
 
-type GroupPanelProps = {
+interface GroupPanelProps {
   group1: CardType[]
   group2: CardType[]
   group3: CardType[]
@@ -32,7 +32,7 @@ function GroupPanelComponent({
         capacity={5}
         cards={group1}
         onSlotClick={() => onSlotClick('group1')}
-        onCardClick={(card) => onCardClick('group1', card)}
+        onCardClick={card => onCardClick('group1', card)}
         isActive={Boolean(selectedCardId) && group1.length < 5}
         isOver={isOver?.group1}
       />
@@ -42,7 +42,7 @@ function GroupPanelComponent({
         capacity={5}
         cards={group2}
         onSlotClick={() => onSlotClick('group2')}
-        onCardClick={(card) => onCardClick('group2', card)}
+        onCardClick={card => onCardClick('group2', card)}
         isActive={Boolean(selectedCardId) && group2.length < 5}
         isOver={isOver?.group2}
       />
@@ -52,7 +52,7 @@ function GroupPanelComponent({
         capacity={3}
         cards={group3}
         onSlotClick={() => onSlotClick('group3')}
-        onCardClick={(card) => onCardClick('group3', card)}
+        onCardClick={card => onCardClick('group3', card)}
         isActive={Boolean(selectedCardId) && group3.length < 3}
         isOver={isOver?.group3}
       />

@@ -1,4 +1,5 @@
-import { io, type Socket } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
+import { io } from 'socket.io-client'
 
 export function createSocketClient(port: number): Socket {
   return io(`http://127.0.0.1:${port}`, {

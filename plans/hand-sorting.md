@@ -142,7 +142,8 @@ export const SUIT_VALUE: Record<Suit, number> = {
 export function sortCards(cards: Card[]): Card[] {
   return cards.toSorted((a, b) => {
     const rankDiff = RANK_VALUE[b.rank] - RANK_VALUE[a.rank]
-    if (rankDiff !== 0) return rankDiff
+    if (rankDiff !== 0)
+      return rankDiff
     return SUIT_VALUE[b.suit] - SUIT_VALUE[a.suit]
   })
 }
@@ -158,7 +159,7 @@ Add a new `sortHand` callback:
 import { sortCards } from '@/lib/cards'
 
 const sortHand = useCallback(() => {
-  setState((current) => ({
+  setState(current => ({
     ...current,
     hand: sortCards(current.hand),
     selectedCardId: null,

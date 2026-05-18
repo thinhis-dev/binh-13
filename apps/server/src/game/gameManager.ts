@@ -3,7 +3,7 @@ import { deal } from './engine'
 
 export type GameStatus = 'dealing' | 'arranging' | 'comparing' | 'finished'
 
-export type GameInstance = {
+export interface GameInstance {
   roomCode: string
   hands: Map<number, Card[]> // playerId → 13 dealt cards
   submissions: Map<number, PlayerArrangement> // playerId → submitted arrangement
@@ -55,8 +55,10 @@ export function submitArrangement(
   arrangement: PlayerArrangement,
 ): boolean {
   const game = activeGames.get(roomCode)
-  if (!game || game.status !== 'arranging') return false
-  if (game.submissions.has(playerId)) return false
+  if (!game || game.status !== 'arranging')
+    return false
+  if (game.submissions.has(playerId))
+    return false
 
   game.submissions.set(playerId, arrangement)
   return true
@@ -65,14 +67,16 @@ export function submitArrangement(
 /** Returns true when all players have submitted their arrangement. */
 export function allSubmitted(roomCode: string): boolean {
   const game = activeGames.get(roomCode)
-  if (!game) return false
+  if (!game)
+    return false
   return game.submissions.size === game.hands.size
 }
 
 /** Clears the timer and removes the game instance from memory. */
 export function endGame(roomCode: string): void {
   const game = activeGames.get(roomCode)
-  if (!game) return
+  if (!game)
+    return
 
   if (game.timerHandle !== null) {
     clearInterval(game.timerHandle)
@@ -84,8 +88,10 @@ export function endGame(roomCode: string): void {
 /** Returns the two player IDs in the game, in insertion order. */
 export function getPlayerIds(roomCode: string): [number, number] | undefined {
   const game = activeGames.get(roomCode)
-  if (!game) return undefined
+  if (!game)
+    return undefined
   const ids = Array.from(game.hands.keys())
-  if (ids.length !== 2) return undefined
+  if (ids.length !== 2)
+    return undefined
   return [ids[0], ids[1]]
 }

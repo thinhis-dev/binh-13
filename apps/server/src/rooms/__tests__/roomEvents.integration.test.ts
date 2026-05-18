@@ -1,29 +1,29 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { EVENTS } from '@binh-13/shared'
 import type { Socket } from 'socket.io-client'
+import { EVENTS } from '@binh-13/shared'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createTestServer } from '../../__tests__/helpers/createTestServer'
 import {
   createSocketClient,
   waitForEvent,
 } from '../../__tests__/helpers/socketClient'
 
-type SessionCreatedPayload = {
+interface SessionCreatedPayload {
   playerId: number
   name: string
 }
 
-type RoomPayload = {
+interface RoomPayload {
   code: string
 }
 
-type ErrorPayload = {
+interface ErrorPayload {
   message: string
 }
 
-type RoomStatePayload = {
+interface RoomStatePayload {
   room: {
     code: string
-    players: Array<{ id: number; name: string }>
+    players: Array<{ id: number, name: string }>
   }
 }
 

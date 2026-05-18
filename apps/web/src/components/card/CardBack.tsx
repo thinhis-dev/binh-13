@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { cn } from '@/lib/utils'
 
-type CardBackProps = {
+interface CardBackProps {
   size?: 'xs' | 'sm' | 'md'
 }
 

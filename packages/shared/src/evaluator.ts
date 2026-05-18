@@ -2,20 +2,20 @@ import type { Card } from './types'
 
 export type ThreeCardCategory = 2 | 1 | 0 // 2=ThreeOfAKind, 1=OnePair, 0=HighCard
 
-export type ThreeCardRank = {
+export interface ThreeCardRank {
   category: ThreeCardCategory
   tiebreakers: number[] // descending — matched cards first, then kickers
 }
 
 export const RANK_VALUE: Record<string, number> = {
-  '2': 2,
-  '3': 3,
-  '4': 4,
-  '5': 5,
-  '6': 6,
-  '7': 7,
-  '8': 8,
-  '9': 9,
+  2: 2,
+  3: 3,
+  4: 4,
+  5: 5,
+  6: 6,
+  7: 7,
+  8: 8,
+  9: 9,
   T: 10,
   J: 11,
   Q: 12,
@@ -40,7 +40,7 @@ export function evaluateThreeCard(cards: Card[]): ThreeCardRank {
     )
   }
 
-  const values = cards.map((c) => RANK_VALUE[c.rank] ?? 0).sort((a, b) => b - a)
+  const values = cards.map(c => RANK_VALUE[c.rank] ?? 0).sort((a, b) => b - a)
 
   const freq = new Map<number, number>()
   for (const v of values) {
@@ -57,7 +57,7 @@ export function evaluateThreeCard(cards: Card[]): ThreeCardRank {
   // One Pair
   for (const [rank, count] of freq) {
     if (count === 2) {
-      const kicker = values.find((v) => v !== rank) ?? 0
+      const kicker = values.find(v => v !== rank) ?? 0
       return { category: 1, tiebreakers: [rank, kicker] }
     }
   }
@@ -81,7 +81,8 @@ export function compareThreeCard(
   for (let i = 0; i < a.tiebreakers.length; i++) {
     const av = a.tiebreakers[i] ?? 0
     const bv = b.tiebreakers[i] ?? 0
-    if (av !== bv) return av > bv ? 1 : -1
+    if (av !== bv)
+      return av > bv ? 1 : -1
   }
 
   return 0

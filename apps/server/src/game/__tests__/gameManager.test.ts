@@ -1,3 +1,4 @@
+import type { PlayerArrangement } from '@binh-13/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   allSubmitted,
@@ -7,7 +8,6 @@ import {
   startGame,
   submitArrangement,
 } from '../gameManager'
-import type { PlayerArrangement } from '@binh-13/shared'
 
 function makeDummyArrangement(playerId: number): PlayerArrangement {
   // Minimal arrangement for testing — real card validation is in gameEvents
@@ -46,7 +46,7 @@ describe('gameManager', () => {
 
     it('deals unique cards (no overlap between players)', () => {
       const game = startGame(ROOM, [1, 2])
-      const p1Ids = new Set(game.hands.get(1)!.map((c) => c.id))
+      const p1Ids = new Set(game.hands.get(1)!.map(c => c.id))
       const p2Cards = game.hands.get(2)!
       for (const card of p2Cards) {
         expect(p1Ids.has(card.id)).toBe(false)

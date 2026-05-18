@@ -1,7 +1,7 @@
 import { logger } from './lib/logger'
 import { createRealtimeServer } from './server'
 
-const PORT = parseInt(process.env.PORT ?? '8080', 10)
+const PORT = Number.parseInt(process.env.PORT ?? '8080', 10)
 const { httpServer } = createRealtimeServer()
 
 httpServer.listen(PORT, () => {

@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { CardBack } from '@/components/card/CardBack'
 
-type OpponentAreaProps = {
+interface OpponentAreaProps {
   opponentSubmitted?: boolean
 }
 

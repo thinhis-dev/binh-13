@@ -1,10 +1,10 @@
-import { memo } from 'react'
-import { useDroppable } from '@dnd-kit/core'
 import type { Card as CardType } from '@binh-13/shared'
+import { useDroppable } from '@dnd-kit/core'
+import { memo } from 'react'
 import { Card } from '@/components/card/Card'
 import { cn } from '@/lib/utils'
 
-type HandAreaProps = {
+interface HandAreaProps {
   cards: CardType[]
   selectedCardId: string | null
   onCardClick: (card: CardType) => void
@@ -28,8 +28,8 @@ function HandAreaComponent({
       data-testid="hand-area"
       className={cn(
         'min-w-0 rounded-md border bg-card transition',
-        shouldHighlightDrop &&
-          'border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/50',
+        shouldHighlightDrop
+        && 'border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/50',
       )}
     >
       <div className="flex items-center justify-between border-b px-4 py-3">
@@ -46,7 +46,7 @@ function HandAreaComponent({
       </div>
       <div className="p-4">
         <div className="flex flex-wrap gap-2">
-          {cards.map((card) => (
+          {cards.map(card => (
             <Card
               key={card.id}
               card={card}

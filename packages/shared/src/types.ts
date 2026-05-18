@@ -1,30 +1,30 @@
 // Suit and Rank
 export type Suit = 'S' | 'H' | 'D' | 'C' // Spades, Hearts, Diamonds, Clubs
-export type Rank =
-  | '2'
-  | '3'
-  | '4'
-  | '5'
-  | '6'
-  | '7'
-  | '8'
-  | '9'
-  | 'T'
-  | 'J'
-  | 'Q'
-  | 'K'
-  | 'A'
+export type Rank
+  = | '2'
+    | '3'
+    | '4'
+    | '5'
+    | '6'
+    | '7'
+    | '8'
+    | '9'
+    | 'T'
+    | 'J'
+    | 'Q'
+    | 'K'
+    | 'A'
 
 // Use 'T' for 10 — aligns with pokersolver's format.
 // Card id = rank + suit, e.g. "AS", "TH", "2C", "KD"
-export type Card = {
+export interface Card {
   id: string
   rank: Rank
   suit: Suit
 }
 
 // Player (safe public view — never includes hand cards of opponents)
-export type Player = {
+export interface Player {
   id: number
   name: string
   seat: 1 | 2
@@ -32,19 +32,19 @@ export type Player = {
 }
 
 // How many rounds to play
-export type GameMode =
-  | { type: 'single' }
-  | { type: 'best_of'; rounds: 3 | 5 | 7 }
-  | { type: 'custom'; roundCount: number }
+export type GameMode
+  = | { type: 'single' }
+    | { type: 'best_of', rounds: 3 | 5 | 7 }
+    | { type: 'custom', roundCount: number }
 
-export type RoomStatus =
-  | 'waiting'
-  | 'playing'
-  | 'arranging'
-  | 'locked'
-  | 'finished'
+export type RoomStatus
+  = | 'waiting'
+    | 'playing'
+    | 'arranging'
+    | 'locked'
+    | 'finished'
 
-export type Room = {
+export interface Room {
   code: string
   status: RoomStatus
   createdBy: number
@@ -55,7 +55,7 @@ export type Room = {
   expiresAt?: number
 }
 
-export type RoomMessage = {
+export interface RoomMessage {
   playerId: number
   name: string
   text: string
@@ -63,7 +63,7 @@ export type RoomMessage = {
 }
 
 // Each player submits this after arranging their 13 cards
-export type PlayerArrangement = {
+export interface PlayerArrangement {
   playerId: number
   group1: [Card, Card, Card, Card, Card] // Back — must be strongest (poker)
   group2: [Card, Card, Card, Card, Card] // Middle (poker)
@@ -72,7 +72,7 @@ export type PlayerArrangement = {
 
 export type GroupResult = 'p1' | 'p2' | 'draw'
 
-export type GroupComparison = {
+export interface GroupComparison {
   result: GroupResult
   p1Hand: string // human-readable, e.g. "Full House, Queens full of Nines"
   p2Hand: string
@@ -80,7 +80,7 @@ export type GroupComparison = {
   p2Foul: boolean
 }
 
-export type RoundResult = {
+export interface RoundResult {
   group1: GroupComparison
   group2: GroupComparison
   group3: GroupComparison
@@ -95,7 +95,7 @@ export type RoundResult = {
   }
 }
 
-export type SessionResult = {
+export interface SessionResult {
   mode: GameMode
   rounds: RoundResult[]
   p1RoundsWon: number
