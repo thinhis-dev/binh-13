@@ -54,12 +54,7 @@ function GroupSlotComponent({
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold">{label}</h3>
         <span className="text-xs text-muted-foreground">
-          {cards.length}
-          {' '}
-          /
-          {capacity}
-          {' '}
-          cards
+          {`${cards.length} / ${capacity} cards`}
         </span>
       </div>
 
