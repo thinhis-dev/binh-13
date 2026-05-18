@@ -112,14 +112,16 @@ describe('session:destroy integration', () => {
     expect(s1.connected).toBe(false)
   })
 
-  it('emits error for invalid playerId', async () => {
+  it('is idempotent for non-existent playerId (still emits SESSION_DESTROYED)', async () => {
     const s1 = await connectClient()
     await createSession(s1, 'Alice')
 
-    const error = waitForEvent<ErrorPayload>(s1, EVENTS.ERROR)
+    const destroyed = waitForEvent<void>(s1, EVENTS.SESSION_DESTROYED)
+    const disconnected = waitForEvent<void>(s1, 'disconnect')
     s1.emit(EVENTS.SESSION_DESTROY, { playerId: 99999 })
-    const { message } = await error
+    await destroyed
+    await disconnected
 
-    expect(message).toBeTruthy()
+    expect(s1.connected).toBe(false)
   })
 })

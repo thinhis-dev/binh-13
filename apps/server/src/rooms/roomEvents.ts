@@ -74,23 +74,23 @@ export function registerRoomEvents(io: Server): void {
       if (!data)
         return
 
-      if (!getSession(data.playerId)) {
-        emitError(socket, 'Session not found')
-        return
+      // Idempotent: if session already gone (e.g. server restart wiped DB),
+      // still confirm destruction so the client can clear local state.
+      if (getSession(data.playerId)) {
+        // Force-leave room if player is in one
+        const room = getRoomByPlayer(data.playerId)
+        if (room) {
+          leaveRoom(room.code, data.playerId)
+          socket.leave(room.code)
+          io.to(room.code).emit(EVENTS.ROOM_LEFT, { playerId: data.playerId })
+          const updatedRoom = getRoom(room.code)
+          if (updatedRoom)
+            emitRoomState(io, room.code)
+        }
+
+        deleteSession(data.playerId)
       }
 
-      // Force-leave room if player is in one
-      const room = getRoomByPlayer(data.playerId)
-      if (room) {
-        leaveRoom(room.code, data.playerId)
-        socket.leave(room.code)
-        io.to(room.code).emit(EVENTS.ROOM_LEFT, { playerId: data.playerId })
-        const updatedRoom = getRoom(room.code)
-        if (updatedRoom)
-          emitRoomState(io, room.code)
-      }
-
-      deleteSession(data.playerId)
       socket.emit(EVENTS.SESSION_DESTROYED)
       socket.disconnect(true)
       log.info({ playerId: data.playerId }, 'Session destroyed')
