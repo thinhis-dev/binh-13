@@ -19,12 +19,13 @@ type PendingAction = 'session' | 'create' | 'join' | null
 
 export default function Home() {
   const navigate = useNavigate()
-  const { createSession, createRoom, joinRoom } = useSocket()
+  const { createSession, createRoom, joinRoom, destroySession } = useSocket()
   const playerId = useSessionStore(state => state.playerId)
   const storedName = useSessionStore(state => state.name)
   const setSession = useSessionStore(state => state.setSession)
   const setRoomCode = useSessionStore(state => state.setRoom)
   const setGameRoom = useGameStore(state => state.setRoom)
+  const clearSession = useSessionStore(state => state.clearSession)
   const [health, setHealth] = useState<HealthResponse | null>(null)
   const [serverError, setServerError] = useState(false)
   const [name, setName] = useState(storedName ?? '')
@@ -74,11 +75,17 @@ export default function Home() {
       setPendingAction(null)
     }
 
+    const handleSessionDestroyed = () => {
+      clearSession()
+      setPendingAction(null)
+    }
+
     socket.on(EVENTS.SESSION_CREATED, handleSessionCreated)
     socket.on(EVENTS.ROOM_CREATED, handleRoomCreated)
     socket.on(EVENTS.ROOM_JOINED, handleRoomJoined)
     socket.on(EVENTS.ROOM_STATE, handleRoomState)
     socket.on(EVENTS.ERROR, handleError)
+    socket.on(EVENTS.SESSION_DESTROYED, handleSessionDestroyed)
     socket.on('connect_error', handleConnectError)
 
     return () => {
@@ -87,9 +94,10 @@ export default function Home() {
       socket.off(EVENTS.ROOM_JOINED, handleRoomJoined)
       socket.off(EVENTS.ROOM_STATE, handleRoomState)
       socket.off(EVENTS.ERROR, handleError)
+      socket.off(EVENTS.SESSION_DESTROYED, handleSessionDestroyed)
       socket.off('connect_error', handleConnectError)
     }
-  }, [navigate, setGameRoom, setRoomCode, setSession])
+  }, [navigate, setGameRoom, setRoomCode, setSession, clearSession])
 
   function handleStart(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -119,6 +127,12 @@ export default function Home() {
     setError('')
     setPendingAction('join')
     joinRoom(playerId, roomCode)
+  }
+
+  function handleClearSession() {
+    if (!playerId)
+      return
+    destroySession(playerId)
   }
 
   const hasSession = playerId !== null && storedName !== null
@@ -182,6 +196,21 @@ export default function Home() {
                 Welcome back,
                 {' '}
                 <span className="font-medium text-foreground">{storedName}</span>
+              </div>
+
+              <div className="text-center text-xs text-muted-foreground">
+                Not
+                {' '}
+                {storedName}
+                ?
+                {' '}
+                <button
+                  type="button"
+                  className="underline hover:text-foreground transition-colors"
+                  onClick={handleClearSession}
+                >
+                  Change
+                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

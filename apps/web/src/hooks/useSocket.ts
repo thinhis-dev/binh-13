@@ -61,6 +61,11 @@ export function useSocket() {
     [],
   )
 
+  const destroySession = useCallback((playerId: number) => {
+    ensureSocketConnected()
+    socket.emit(EVENTS.SESSION_DESTROY, { playerId })
+  }, [])
+
   useEffect(() => {
     const handleConnect = () => setConnected(true)
     const handleDisconnect = () => setConnected(false)
@@ -107,5 +112,6 @@ export function useSocket() {
     clearRoom,
     sendMessage,
     submitArrangement,
+    destroySession,
   }
 }

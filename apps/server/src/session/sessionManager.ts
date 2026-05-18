@@ -63,6 +63,23 @@ export function getSessionBySocketId(
   return session
 }
 
+export function deleteSession(playerId: number): void {
+  const db = getDb()
+
+  const del = db.transaction(() => {
+    db.prepare('DELETE FROM arrangements WHERE player_id = ?').run(playerId)
+    db.prepare('DELETE FROM hands WHERE player_id = ?').run(playerId)
+    db.prepare('DELETE FROM room_players WHERE player_id = ?').run(playerId)
+    // Deleting rooms where this player is the creator cascades to
+    // room_players/hands/arrangements for those rooms via ON DELETE CASCADE on room_code FK
+    db.prepare('DELETE FROM rooms WHERE created_by = ?').run(playerId)
+    db.prepare('DELETE FROM sessions WHERE player_id = ?').run(playerId)
+  })
+
+  del()
+  logger.debug({ playerId }, 'Session deleted')
+}
+
 function mapSession(row: SessionRow): Session {
   return {
     playerId: row.player_id,

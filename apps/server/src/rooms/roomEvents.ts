@@ -5,6 +5,7 @@ import { triggerGameStart } from '../game/gameEvents'
 import { createChildLogger } from '../lib/logger'
 import {
   createSession,
+  deleteSession,
   getSession,
   getSessionBySocketId,
   updateSocketId,
@@ -65,6 +66,34 @@ export function registerRoomEvents(io: Server): void {
       const playerId = createSession(data.name, socket.id)
       socket.emit(EVENTS.SESSION_CREATED, { playerId, name: data.name })
       log.info({ playerId, event: EVENTS.SESSION_CREATE }, 'Session created')
+    })
+
+    socket.on(EVENTS.SESSION_DESTROY, (payload) => {
+      log.debug({ event: EVENTS.SESSION_DESTROY }, 'Socket event received')
+      const data = parsePayload(socket, playerSchema, payload)
+      if (!data)
+        return
+
+      if (!getSession(data.playerId)) {
+        emitError(socket, 'Session not found')
+        return
+      }
+
+      // Force-leave room if player is in one
+      const room = getRoomByPlayer(data.playerId)
+      if (room) {
+        leaveRoom(room.code, data.playerId)
+        socket.leave(room.code)
+        io.to(room.code).emit(EVENTS.ROOM_LEFT, { playerId: data.playerId })
+        const updatedRoom = getRoom(room.code)
+        if (updatedRoom)
+          emitRoomState(io, room.code)
+      }
+
+      deleteSession(data.playerId)
+      socket.emit(EVENTS.SESSION_DESTROYED)
+      socket.disconnect(true)
+      log.info({ playerId: data.playerId }, 'Session destroyed')
     })
 
     socket.on(EVENTS.ROOM_CREATE, (payload) => {
