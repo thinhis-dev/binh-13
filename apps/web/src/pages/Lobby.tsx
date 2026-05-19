@@ -1,7 +1,8 @@
-import type { Card, Room } from '@binh-13/shared'
+import type { Card, Room, RoomSettings } from '@binh-13/shared'
 import { EVENTS } from '@binh-13/shared'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { RoomSettingsModal } from '@/components/game/RoomSettingsModal'
 import { Button } from '@/components/ui/button'
 import { useSocket } from '@/hooks/useSocket'
 import { socket } from '@/lib/socket'
@@ -12,12 +13,14 @@ export default function Lobby() {
   const navigate = useNavigate()
   const params = useParams()
   const code = params.code?.toUpperCase() ?? ''
-  const { joinRoom, leaveRoom, clearRoom } = useSocket()
+  const { joinRoom, leaveRoom, clearRoom, startGame } = useSocket()
   const playerId = useSessionStore(state => state.playerId)
   const roomCode = useSessionStore(state => state.roomCode)
   const setRoomCode = useSessionStore(state => state.setRoom)
   const room = useGameStore(state => state.room)
+  const settings = useGameStore(state => state.settings)
   const setGameRoom = useGameStore(state => state.setRoom)
+  const setSettings = useGameStore(state => state.setSettings)
   const setHand = useGameStore(state => state.setHand)
   const setTimer = useGameStore(state => state.setTimer)
   const resetGame = useGameStore(state => state.reset)
@@ -38,6 +41,10 @@ export default function Lobby() {
     const handleRoomState = (payload: { room: Room }) => {
       setGameRoom(payload.room)
       setError('')
+    }
+
+    const handleSettingsUpdated = (payload: { settings: RoomSettings }) => {
+      setSettings(payload.settings)
     }
 
     const handleGameDealt = (payload: {
@@ -69,6 +76,7 @@ export default function Lobby() {
     }
 
     socket.on(EVENTS.ROOM_STATE, handleRoomState)
+    socket.on(EVENTS.ROOM_SETTINGS_UPDATED, handleSettingsUpdated)
     socket.on(EVENTS.GAME_DEALT, handleGameDealt)
     socket.on(EVENTS.ROOM_LEFT, handleRoomLeft)
     socket.on(EVENTS.ROOM_CLEARED, handleRoomCleared)
@@ -76,6 +84,7 @@ export default function Lobby() {
 
     return () => {
       socket.off(EVENTS.ROOM_STATE, handleRoomState)
+      socket.off(EVENTS.ROOM_SETTINGS_UPDATED, handleSettingsUpdated)
       socket.off(EVENTS.GAME_DEALT, handleGameDealt)
       socket.off(EVENTS.ROOM_LEFT, handleRoomLeft)
       socket.off(EVENTS.ROOM_CLEARED, handleRoomCleared)
@@ -86,6 +95,7 @@ export default function Lobby() {
     playerId,
     resetGame,
     setGameRoom,
+    setSettings,
     setHand,
     setTimer,
     setRoomCode,
@@ -123,8 +133,10 @@ export default function Lobby() {
   const isCreator = room?.createdBy === playerId
   const bothPlayersReady = (room?.players.length ?? 0) >= 2
 
-  function handleStartGamePreview() {
-    navigate(`/room/${code}/game`)
+  function handleStartGame() {
+    if (!playerId || !code)
+      return
+    startGame(playerId, code)
   }
 
   return (
@@ -147,6 +159,13 @@ export default function Lobby() {
             <Button type="button" variant="outline" onClick={handleLeave}>
               Leave
             </Button>
+            {isCreator && settings && (
+              <RoomSettingsModal
+                settings={settings}
+                code={code}
+                playerId={playerId!}
+              />
+            )}
             {isCreator && (
               <Button type="button" variant="destructive" onClick={handleClear}>
                 Clear Room
@@ -196,17 +215,53 @@ export default function Lobby() {
 
         {bothPlayersReady && (
           <div className="rounded-md border bg-card p-4">
+            {settings?.autoStart === false
+              ? (
+                  <>
+                    {isCreator
+                      ? (
+                          <>
+                            <p className="text-sm text-muted-foreground">
+                              Both players are ready. Start the game when you're ready.
+                            </p>
+                            <Button
+                              type="button"
+                              className="mt-3 w-full"
+                              onClick={handleStartGame}
+                            >
+                              Start Game
+                            </Button>
+                          </>
+                        )
+                      : (
+                          <p className="text-sm text-muted-foreground">
+                            Both players are ready. Waiting for the room owner to start the game.
+                          </p>
+                        )}
+                  </>
+                )
+              : (
+                  <p className="text-sm text-muted-foreground">
+                    Both players are in the room. The game will start automatically.
+                  </p>
+                )}
+          </div>
+        )}
+
+        {settings && (
+          <div className="rounded-md border bg-card p-4">
+            <h2 className="mb-2 text-sm font-semibold">Game Settings</h2>
             <p className="text-sm text-muted-foreground">
-              Both players are in the room. The game will start automatically
-              when the server deals the cards.
+              {settings.timerSeconds === 0 ? 'Unlimited' : `${settings.timerSeconds}s`}
+              {' · '}
+              {settings.autoStart ? 'Auto-start' : 'Manual start'}
+              {' · '}
+              {settings.allowFoul ? 'Foul allowed' : 'No foul'}
+              {' · '}
+              {settings.showHandStrength ? 'Hand strength visible' : 'Hand strength hidden'}
+              {' · '}
+              {settings.revealOnSubmit ? 'Reveal on submit' : 'Hidden until both submit'}
             </p>
-            <Button
-              type="button"
-              className="mt-3 w-full"
-              onClick={handleStartGamePreview}
-            >
-              Preview Game UI
-            </Button>
           </div>
         )}
       </main>

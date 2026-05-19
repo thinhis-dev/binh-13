@@ -1,6 +1,6 @@
 import type { Card, PlayerArrangement, RoundResult } from '@binh-13/shared'
 import type { Socket } from 'socket.io-client'
-import { EVENTS, GAME_TIMER_SECONDS } from '@binh-13/shared'
+import { EVENTS } from '@binh-13/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTestServer } from '../../__tests__/helpers/createTestServer'
 import {
@@ -119,8 +119,9 @@ describe('gameEvents integration', () => {
     const [d1, d2] = await Promise.all([p1Dealt, p2Dealt])
     expect(d1.hand).toHaveLength(13)
     expect(d2.hand).toHaveLength(13)
-    expect(d1.timerSeconds).toBe(GAME_TIMER_SECONDS)
-    expect(d2.timerSeconds).toBe(GAME_TIMER_SECONDS)
+    // Timer now comes from room settings (DEFAULT_ROOM_SETTINGS.timerSeconds = 60)
+    expect(d1.timerSeconds).toBe(60)
+    expect(d2.timerSeconds).toBe(60)
   })
 
   it('dealt cards are unique per player (no overlap)', async () => {

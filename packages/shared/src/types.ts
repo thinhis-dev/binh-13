@@ -49,10 +49,27 @@ export interface Room {
   status: RoomStatus
   createdBy: number
   players: Player[]
+  settings?: RoomSettings
   mode?: GameMode
   currentRound?: number
   createdAt?: number
   expiresAt?: number
+}
+
+export interface RoomSettings {
+  timerSeconds: number // 0 = unlimited
+  autoStart: boolean
+  allowFoul: boolean
+  showHandStrength: boolean
+  revealOnSubmit: boolean
+}
+
+export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
+  timerSeconds: 60,
+  autoStart: true,
+  allowFoul: true,
+  showHandStrength: true,
+  revealOnSubmit: false,
 }
 
 export interface RoomMessage {

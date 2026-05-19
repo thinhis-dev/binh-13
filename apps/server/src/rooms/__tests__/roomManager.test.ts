@@ -1,3 +1,4 @@
+import { DEFAULT_ROOM_SETTINGS } from '@binh-13/shared'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { resetTestDb } from '../../__tests__/helpers/testDb'
 import { createSession } from '../../session/sessionManager'
@@ -6,9 +7,11 @@ import {
   createRoom,
   getRoom,
   getRoomByPlayer,
+  getRoomSettings,
   joinRoom,
   leaveRoom,
   toPublicRoom,
+  updateRoomSettings,
 } from '../roomManager'
 
 describe('roomManager', () => {
@@ -26,6 +29,7 @@ describe('roomManager', () => {
       code,
       status: 'waiting',
       createdBy: creatorId,
+      settings: DEFAULT_ROOM_SETTINGS,
       players: [
         {
           playerId: creatorId,
@@ -39,6 +43,7 @@ describe('roomManager', () => {
       code,
       status: 'waiting',
       createdBy: creatorId,
+      settings: DEFAULT_ROOM_SETTINGS,
       players: [
         {
           id: creatorId,
@@ -109,4 +114,93 @@ describe('roomManager', () => {
   // This path is only reachable when every generated code already exists in the
   // DB, which requires controlling Math.random. It is intentionally left
   // uncovered — the defensive guard exists for correctness, not exercisability.
+})
+
+describe('roomSettings', () => {
+  beforeEach(() => {
+    resetTestDb()
+  })
+
+  it('getRoomSettings returns DEFAULT_ROOM_SETTINGS when no settings stored', () => {
+    const creatorId = createSession('Creator', 'socket-creator')
+    const code = createRoom(creatorId)
+
+    const settings = getRoomSettings(code)
+    expect(settings).toEqual(DEFAULT_ROOM_SETTINGS)
+  })
+
+  it('getRoomSettings merges stored partial settings over defaults', () => {
+    const creatorId = createSession('Creator', 'socket-creator')
+    const code = createRoom(creatorId)
+
+    updateRoomSettings(code, { timerSeconds: 120, allowFoul: false })
+
+    const settings = getRoomSettings(code)
+    expect(settings).toEqual({
+      ...DEFAULT_ROOM_SETTINGS,
+      timerSeconds: 120,
+      allowFoul: false,
+    })
+  })
+
+  it('updateRoomSettings saves merged result and returns full settings', () => {
+    const creatorId = createSession('Creator', 'socket-creator')
+    const code = createRoom(creatorId)
+
+    const result = updateRoomSettings(code, { timerSeconds: 30, autoStart: false })
+    expect(result).toEqual({
+      ...DEFAULT_ROOM_SETTINGS,
+      timerSeconds: 30,
+      autoStart: false,
+    })
+
+    // Re-read to confirm persistence
+    expect(getRoomSettings(code)).toEqual({
+      ...DEFAULT_ROOM_SETTINGS,
+      timerSeconds: 30,
+      autoStart: false,
+    })
+  })
+
+  it('updateRoomSettings with empty object changes nothing', () => {
+    const creatorId = createSession('Creator', 'socket-creator')
+    const code = createRoom(creatorId)
+
+    const result = updateRoomSettings(code, {})
+    expect(result).toEqual(DEFAULT_ROOM_SETTINGS)
+  })
+
+  it('getRoom includes settings in returned state', () => {
+    const creatorId = createSession('Creator', 'socket-creator')
+    const code = createRoom(creatorId)
+
+    updateRoomSettings(code, { revealOnSubmit: true })
+
+    const room = getRoom(code)
+    expect(room?.settings).toEqual({
+      ...DEFAULT_ROOM_SETTINGS,
+      revealOnSubmit: true,
+    })
+  })
+
+  it('toPublicRoom includes settings', () => {
+    const creatorId = createSession('Creator', 'socket-creator')
+    const code = createRoom(creatorId)
+
+    updateRoomSettings(code, { showHandStrength: false })
+
+    const room = getRoom(code)!
+    const publicRoom = toPublicRoom(room)
+
+    expect(publicRoom.settings).toEqual({
+      ...DEFAULT_ROOM_SETTINGS,
+      showHandStrength: false,
+    })
+  })
+
+  it('getRoomSettings returns DEFAULT_ROOM_SETTINGS for unknown code gracefully', () => {
+    // Unknown room code — should return defaults (not throw)
+    const settings = getRoomSettings('XXXXXX')
+    expect(settings).toEqual(DEFAULT_ROOM_SETTINGS)
+  })
 })

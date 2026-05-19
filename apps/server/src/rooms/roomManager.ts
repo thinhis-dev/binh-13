@@ -1,4 +1,5 @@
-import type { Room } from '@binh-13/shared'
+import type { Room, RoomSettings } from '@binh-13/shared'
+import { DEFAULT_ROOM_SETTINGS } from '@binh-13/shared'
 import { getDb } from '../db'
 import { logger } from '../lib/logger'
 
@@ -10,6 +11,7 @@ interface RoomRow {
   status: string
   created_by: number
   created_at: number
+  settings_json: string
 }
 
 interface PlayerRow {
@@ -23,6 +25,7 @@ export interface RoomState {
   code: string
   status: string
   createdBy: number
+  settings: RoomSettings
   players: Array<{
     playerId: number
     name: string
@@ -156,7 +159,7 @@ export function getRoom(code: string): RoomState | undefined {
   const normalizedCode = normalizeCode(code)
   const room = db
     .prepare(
-      'SELECT code, status, created_by, created_at FROM rooms WHERE code = ?',
+      'SELECT code, status, created_by, created_at, settings_json FROM rooms WHERE code = ?',
     )
     .get(normalizedCode) as RoomRow | undefined
 
@@ -177,10 +180,19 @@ export function getRoom(code: string): RoomState | undefined {
     )
     .all(normalizedCode) as PlayerRow[]
 
-  const roomState = {
+  let storedSettings: Partial<RoomSettings> = {}
+  try {
+    storedSettings = JSON.parse(room.settings_json || '{}') as Partial<RoomSettings>
+  }
+  catch {
+    storedSettings = {}
+  }
+
+  const roomState: RoomState = {
     code: room.code,
     status: room.status,
     createdBy: room.created_by,
+    settings: { ...DEFAULT_ROOM_SETTINGS, ...storedSettings },
     players: players.map(player => ({
       playerId: player.player_id,
       name: player.name,
@@ -219,6 +231,7 @@ export function toPublicRoom(room: RoomState): Room {
     code: room.code,
     status: room.status as Room['status'],
     createdBy: room.createdBy,
+    settings: room.settings,
     players: room.players.map(player => ({
       id: player.playerId,
       name: player.name,
@@ -226,6 +239,40 @@ export function toPublicRoom(room: RoomState): Room {
       connected: player.connected,
     })),
   }
+}
+
+export function getRoomSettings(code: string): RoomSettings {
+  const normalizedCode = normalizeCode(code)
+  const row = getDb()
+    .prepare('SELECT settings_json FROM rooms WHERE code = ?')
+    .get(normalizedCode) as { settings_json: string } | undefined
+
+  if (!row)
+    return { ...DEFAULT_ROOM_SETTINGS }
+
+  try {
+    const stored = JSON.parse(row.settings_json || '{}') as Partial<RoomSettings>
+    return { ...DEFAULT_ROOM_SETTINGS, ...stored }
+  }
+  catch {
+    return { ...DEFAULT_ROOM_SETTINGS }
+  }
+}
+
+export function updateRoomSettings(
+  code: string,
+  partial: Partial<RoomSettings>,
+): RoomSettings {
+  const normalizedCode = normalizeCode(code)
+  const current = getRoomSettings(normalizedCode)
+  const merged = { ...current, ...partial }
+
+  getDb()
+    .prepare('UPDATE rooms SET settings_json = ? WHERE code = ?')
+    .run(JSON.stringify(merged), normalizedCode)
+
+  logger.debug({ code: normalizedCode }, 'Room settings updated')
+  return merged
 }
 
 function generateUniqueRoomCode(): string {

@@ -22,9 +22,13 @@ export const EVENTS = {
 
   GAME_DEALT: 'game:dealt',
   GAME_TIMER: 'game:timer',
+  GAME_START: 'game:start',
   GAME_SUBMIT: 'game:submit',
   GAME_OPPONENT_SUBMITTED: 'game:opponent_submitted',
   GAME_RESULT: 'game:result',
+
+  ROOM_SETTINGS_UPDATE: 'room:settings_update',
+  ROOM_SETTINGS_UPDATED: 'room:settings_updated',
 
   PLAYER_DISCONNECTED: 'player:disconnected',
   PLAYER_RECONNECTED: 'player:reconnected',

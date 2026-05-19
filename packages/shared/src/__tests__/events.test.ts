@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { EVENTS } from '../events'
+import { DEFAULT_ROOM_SETTINGS } from '../types'
 
 describe('eVENTS', () => {
   it('keeps shared socket event names stable', () => {
@@ -12,6 +13,27 @@ describe('eVENTS', () => {
       ROOM_CLEARED: 'room:cleared',
       GAME_RESULT: 'game:result',
       ERROR: 'error',
+    })
+  })
+
+  it('has ROOM_SETTINGS_UPDATE and ROOM_SETTINGS_UPDATED events', () => {
+    expect(EVENTS.ROOM_SETTINGS_UPDATE).toBe('room:settings_update')
+    expect(EVENTS.ROOM_SETTINGS_UPDATED).toBe('room:settings_updated')
+  })
+
+  it('has GAME_START event', () => {
+    expect(EVENTS.GAME_START).toBe('game:start')
+  })
+})
+
+describe('dEFAULT_ROOM_SETTINGS', () => {
+  it('has correct default values', () => {
+    expect(DEFAULT_ROOM_SETTINGS).toEqual({
+      timerSeconds: 60,
+      autoStart: true,
+      allowFoul: true,
+      showHandStrength: true,
+      revealOnSubmit: false,
     })
   })
 })

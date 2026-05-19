@@ -51,7 +51,8 @@ function runMigrations(db: Database.Database): void {
       status        TEXT    NOT NULL DEFAULT 'waiting',
       created_by    INTEGER NOT NULL REFERENCES sessions(player_id),
       created_at    INTEGER NOT NULL,
-      current_round INTEGER NOT NULL DEFAULT 1
+      current_round INTEGER NOT NULL DEFAULT 1,
+      settings_json TEXT    NOT NULL DEFAULT '{}'
     );
 
     CREATE TABLE IF NOT EXISTS room_players (

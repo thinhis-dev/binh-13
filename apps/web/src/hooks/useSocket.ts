@@ -61,6 +61,11 @@ export function useSocket() {
     [],
   )
 
+  const startGame = useCallback((playerId: number, code: string) => {
+    ensureSocketConnected()
+    socket.emit(EVENTS.GAME_START, { playerId, code })
+  }, [])
+
   const destroySession = useCallback((playerId: number) => {
     ensureSocketConnected()
     socket.emit(EVENTS.SESSION_DESTROY, { playerId })
@@ -112,6 +117,7 @@ export function useSocket() {
     clearRoom,
     sendMessage,
     submitArrangement,
+    startGame,
     destroySession,
   }
 }

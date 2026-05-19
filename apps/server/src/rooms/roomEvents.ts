@@ -15,9 +15,11 @@ import {
   createRoom,
   getRoom,
   getRoomByPlayer,
+  getRoomSettings,
   joinRoom,
   leaveRoom,
   toPublicRoom,
+  updateRoomSettings,
 } from './roomManager'
 
 const roomCodeSchema = z
@@ -48,6 +50,16 @@ const roomMessageSchema = roomActionSchema.extend({
     .trim()
     .min(1, 'Message is required')
     .max(200, 'Message is too long'),
+})
+
+const roomSettingsSchema = roomActionSchema.extend({
+  settings: z.object({
+    timerSeconds: z.number().int().min(0).max(600).optional(),
+    autoStart: z.boolean().optional(),
+    allowFoul: z.boolean().optional(),
+    showHandStrength: z.boolean().optional(),
+    revealOnSubmit: z.boolean().optional(),
+  }),
 })
 
 type EventPayload<T extends z.ZodTypeAny> = z.infer<T>
@@ -133,11 +145,17 @@ export function registerRoomEvents(io: Server): void {
       emitRoomState(io, data.code)
       log.info({ playerId: data.playerId, roomCode: data.code }, 'Room joined')
 
-      // Trigger game start when 2nd player joins
+      // Trigger game start when 2nd player joins (if autoStart enabled)
       const updatedRoom = getRoom(data.code)
       if (updatedRoom && updatedRoom.players.length === 2) {
-        triggerGameStart(io, data.code, updatedRoom.players)
-        log.info({ roomCode: data.code }, 'Game start triggered')
+        const settings = getRoomSettings(data.code)
+        if (settings.autoStart) {
+          triggerGameStart(io, data.code, updatedRoom.players, settings.timerSeconds)
+          log.info({ roomCode: data.code }, 'Game start triggered (autoStart)')
+        }
+        else {
+          log.info({ roomCode: data.code }, 'autoStart disabled — waiting for GAME_START')
+        }
       }
     })
 
@@ -227,6 +245,100 @@ export function registerRoomEvents(io: Server): void {
       clearRoom(data.code)
       leaveSocketRoom(io, data.code)
       log.info({ playerId: data.playerId, roomCode: data.code }, 'Room cleared')
+    })
+
+    socket.on(EVENTS.GAME_START, (payload) => {
+      log.debug({ event: EVENTS.GAME_START }, 'Socket event received')
+      const data = parsePayload(socket, roomActionSchema, payload)
+      if (!data || !assertSession(socket, data.playerId))
+        return
+
+      const room = getRoom(data.code)
+      if (!room) {
+        log.warn(
+          { playerId: data.playerId, roomCode: data.code },
+          'Game start rejected: missing room',
+        )
+        emitError(socket, 'Room not found')
+        return
+      }
+
+      if (room.createdBy !== data.playerId) {
+        log.warn(
+          { playerId: data.playerId, roomCode: data.code },
+          'Game start rejected: non-creator',
+        )
+        emitError(socket, 'Only the room creator can start the game')
+        return
+      }
+
+      if (room.players.length < 2) {
+        log.warn(
+          { playerId: data.playerId, roomCode: data.code },
+          'Game start rejected: not enough players',
+        )
+        emitError(socket, 'Need 2 players to start')
+        return
+      }
+
+      if (room.status !== 'waiting') {
+        log.warn(
+          { playerId: data.playerId, roomCode: data.code },
+          'Game start rejected: game already in progress',
+        )
+        emitError(socket, 'Game already in progress')
+        return
+      }
+
+      const settings = getRoomSettings(data.code)
+      triggerGameStart(io, data.code, room.players, settings.timerSeconds)
+      log.info({ playerId: data.playerId, roomCode: data.code }, 'Game start triggered manually')
+    })
+
+    socket.on(EVENTS.ROOM_SETTINGS_UPDATE, (payload) => {
+      log.debug({ event: EVENTS.ROOM_SETTINGS_UPDATE }, 'Socket event received')
+      const data = parsePayload(socket, roomSettingsSchema, payload)
+      if (!data || !assertSession(socket, data.playerId))
+        return
+
+      const room = getRoom(data.code)
+      if (!room) {
+        log.warn(
+          { playerId: data.playerId, roomCode: data.code },
+          'Settings update rejected: missing room',
+        )
+        emitError(socket, 'Room not found')
+        return
+      }
+
+      if (room.createdBy !== data.playerId) {
+        log.warn(
+          { playerId: data.playerId, roomCode: data.code },
+          'Settings update rejected: non-creator',
+        )
+        emitError(socket, 'Only the room creator can change settings')
+        return
+      }
+
+      if (room.status !== 'waiting') {
+        log.warn(
+          { playerId: data.playerId, roomCode: data.code },
+          'Settings update rejected: game in progress',
+        )
+        emitError(socket, 'Cannot change settings while game is in progress')
+        return
+      }
+
+      const updatedSettings = updateRoomSettings(data.code, data.settings)
+
+      io.to(data.code).emit(EVENTS.ROOM_SETTINGS_UPDATED, {
+        settings: updatedSettings,
+      })
+      emitRoomState(io, data.code)
+      log.info(
+        { playerId: data.playerId, roomCode: data.code },
+        'Room settings updated',
+      )
     })
 
     socket.on('disconnect', () => {

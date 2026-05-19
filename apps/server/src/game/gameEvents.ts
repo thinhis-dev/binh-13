@@ -4,10 +4,11 @@ import { EVENTS, GAME_TIMER_SECONDS, RANK_VALUE } from '@binh-13/shared'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { createChildLogger } from '../lib/logger'
-import { getRoom, updateRoomStatus } from '../rooms/roomManager'
+import { getRoom, getRoomSettings, updateRoomStatus } from '../rooms/roomManager'
 import { getSession } from '../session/sessionManager'
 import { compareRound } from './compareRound'
 import { compareFiveCard } from './evaluator'
+import { validateArrangement } from './foulCheck'
 import {
   allSubmitted,
   endGame,
@@ -320,6 +321,14 @@ export function registerGameEvents(io: Server): void {
         group1: arrangement.group1 as PlayerArrangement['group1'],
         group2: arrangement.group2 as PlayerArrangement['group2'],
         group3: arrangement.group3 as PlayerArrangement['group3'],
+      }
+
+      // Check allowFoul room setting
+      const roomSettings = getRoomSettings(code)
+      if (!roomSettings.allowFoul && !validateArrangement(fullArrangement)) {
+        log.warn({ playerId, code }, 'Foul arrangement rejected by room settings')
+        socket.emit(EVENTS.ERROR, { message: 'Foul arrangements are not allowed in this room' })
+        return
       }
 
       const accepted = submitArrangement(code, playerId, fullArrangement)
