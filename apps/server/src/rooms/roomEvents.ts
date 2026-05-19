@@ -2,6 +2,7 @@ import type { Server, Socket } from 'socket.io'
 import { EVENTS } from '@binh-13/shared'
 import { z } from 'zod'
 import { triggerGameStart } from '../game/gameEvents'
+import { endGame } from '../game/gameManager'
 import { createChildLogger } from '../lib/logger'
 import {
   createSession,
@@ -180,8 +181,12 @@ export function registerRoomEvents(io: Server): void {
       io.to(data.code).emit(EVENTS.ROOM_LEFT, { playerId: data.playerId })
 
       const updatedRoom = getRoom(data.code)
-      if (updatedRoom)
+      if (updatedRoom) {
         emitRoomState(io, data.code)
+      }
+      else {
+        endGame(data.code)
+      }
       log.info({ playerId: data.playerId, roomCode: data.code }, 'Room left')
     })
 
@@ -242,6 +247,7 @@ export function registerRoomEvents(io: Server): void {
       }
 
       io.to(data.code).emit(EVENTS.ROOM_CLEARED, { code: data.code })
+      endGame(data.code)
       clearRoom(data.code)
       leaveSocketRoom(io, data.code)
       log.info({ playerId: data.playerId, roomCode: data.code }, 'Room cleared')
@@ -417,5 +423,12 @@ function handleDisconnect(io: Server, socket: Socket): void {
 
   leaveRoom(room.code, session.playerId)
   io.to(room.code).emit(EVENTS.ROOM_LEFT, { playerId: session.playerId })
-  emitRoomState(io, room.code)
+
+  // If room was cleared (all players disconnected), cancel any active game timer
+  if (!getRoom(room.code)) {
+    endGame(room.code)
+  }
+  else {
+    emitRoomState(io, room.code)
+  }
 }

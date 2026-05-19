@@ -135,4 +135,42 @@ describe('handleTimerExpiry', () => {
     // endGame should have been called by resolveRound → game no longer exists
     expect(getGame(ROOM)).toBeUndefined()
   })
+
+  it('endGame cancels timer so handleTimerExpiry never fires after room deletion', () => {
+    vi.useFakeTimers()
+    const io = makeMockIo()
+    const game = startGame(ROOM, [1, 2], 5)
+
+    // Simulate a running timer
+    let timerFired = false
+    game.timerHandle = setInterval(() => {
+      timerFired = true
+      handleTimerExpiry(io as unknown as Server, ROOM)
+    }, 1000)
+
+    // Simulate what should happen when both players disconnect: endGame is called
+    endGame(ROOM)
+
+    // Advance time past the timer interval
+    vi.advanceTimersByTime(5000)
+
+    // Timer callback should NOT have fired because endGame cleared it
+    expect(timerFired).toBe(false)
+    expect(getGame(ROOM)).toBeUndefined()
+    vi.useRealTimers()
+  })
+
+  it('is a no-op when game was ended (room cleared) before timer expires', () => {
+    const io = makeMockIo()
+    startGame(ROOM, [1, 2], 5)
+
+    // Simulate room cleared → endGame called
+    endGame(ROOM)
+
+    // Now timer fires but game no longer exists
+    expect(() =>
+      handleTimerExpiry(io as unknown as Server, ROOM),
+    ).not.toThrow()
+    expect(io.to).not.toHaveBeenCalled()
+  })
 })

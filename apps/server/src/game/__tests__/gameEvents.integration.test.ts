@@ -385,4 +385,29 @@ describe('gameEvents integration', () => {
       message: 'Game not in progress',
     })
   }, 10_000)
+
+  it('both players disconnect during game → timer expiry does not crash (FK constraint)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const { s1, s2, p1, p2, code } = await setupTwoPlayerRoom()
+
+    const p1Dealt = waitForEvent<GameDealtPayload>(s1, EVENTS.GAME_DEALT)
+    const p2Dealt = waitForEvent<GameDealtPayload>(s2, EVENTS.GAME_DEALT)
+    s2.emit(EVENTS.ROOM_JOIN, { playerId: p2.playerId, code })
+    await Promise.all([p1Dealt, p2Dealt])
+
+    // Both players disconnect (simulating navigating away)
+    s1.disconnect()
+    s2.disconnect()
+
+    // Wait a moment for disconnect handlers to fire
+    await vi.advanceTimersByTimeAsync(500)
+
+    // Advance time past the game timer (60s default) — this should NOT throw
+    // Previously this caused SqliteError: FOREIGN KEY constraint failed
+    await vi.advanceTimersByTimeAsync(61_000)
+
+    // If we get here without a crash, the bug is fixed.
+    // The game timer should have been cancelled when the room was cleared.
+    expect(true).toBe(true)
+  }, 15_000)
 })
