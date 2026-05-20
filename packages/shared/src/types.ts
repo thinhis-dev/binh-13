@@ -110,6 +110,8 @@ export interface RoundResult {
     p1: PlayerArrangement
     p2: PlayerArrangement
   }
+  surrendered?: boolean
+  surrenderedBy?: number // playerId of the player who surrendered
 }
 
 export interface SessionResult {

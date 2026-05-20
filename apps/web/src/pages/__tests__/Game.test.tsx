@@ -115,4 +115,22 @@ describe('game page', () => {
     // GameBoard renders card buttons from initialCards
     expect(screen.queryByText(/Waiting for cards/)).not.toBeInTheDocument()
   })
+
+  it('surrender button is visible when hand is dealt', () => {
+    useGameStore.getState().setHand(dummyCards)
+    renderGame()
+    expect(screen.getByRole('button', { name: /surrender/i })).toBeInTheDocument()
+  })
+
+  it('surrender button is NOT visible when hand is empty (waiting)', () => {
+    renderGame()
+    expect(screen.queryByRole('button', { name: /surrender/i })).not.toBeInTheDocument()
+  })
+
+  it('surrender button is disabled after player has submitted', () => {
+    useGameStore.getState().setHand(dummyCards)
+    useGameStore.getState().setSubmitted(true)
+    renderGame()
+    expect(screen.getByRole('button', { name: /surrender/i })).toBeDisabled()
+  })
 })

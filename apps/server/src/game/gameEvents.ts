@@ -58,6 +58,11 @@ const gameSubmitSchema = z.object({
   }),
 })
 
+const gameSurrenderSchema = z.object({
+  playerId: z.number().int().positive(),
+  code: roomCodeSchema,
+})
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
@@ -360,7 +365,142 @@ export function registerGameEvents(io: Server): void {
         )
       }
     })
+
+    socket.on(EVENTS.GAME_SURRENDER, (payload) => {
+      const parsed = gameSurrenderSchema.safeParse(payload)
+      if (!parsed.success) {
+        socket.emit(EVENTS.ERROR, {
+          message: parsed.error.issues[0]?.message ?? 'Invalid payload',
+        })
+        return
+      }
+
+      const { playerId, code } = parsed.data
+
+      const session = getSession(playerId)
+      if (!session) {
+        socket.emit(EVENTS.ERROR, { message: 'Session not found' })
+        return
+      }
+
+      const room = getRoom(code)
+      if (!room) {
+        socket.emit(EVENTS.ERROR, { message: 'Room not found' })
+        return
+      }
+
+      if (!room.players.some(p => p.playerId === playerId)) {
+        socket.emit(EVENTS.ERROR, { message: 'Not in this room' })
+        return
+      }
+
+      const game = getGame(code)
+      if (!game || game.status !== 'arranging') {
+        socket.emit(EVENTS.ERROR, { message: 'No active game' })
+        return
+      }
+
+      if (game.submissions.has(playerId)) {
+        socket.emit(EVENTS.ERROR, { message: 'Cannot surrender after submitting' })
+        return
+      }
+
+      handleSurrender(io, code, playerId)
+    })
   })
+}
+
+/**
+ * Resolves a game by surrender.
+ * The surrendering player loses all 3 groups; their opponent wins.
+ * Emits GAME_SURRENDERED then GAME_RESULT to the room.
+ */
+export function handleSurrender(
+  io: Server,
+  roomCode: string,
+  surrenderingPlayerId: number,
+): void {
+  const game = getGame(roomCode)
+  if (!game || game.status !== 'arranging')
+    return
+
+  const ids = getPlayerIds(roomCode)
+  if (!ids)
+    return
+
+  const [p1Id, p2Id] = ids
+  const isP1 = surrenderingPlayerId === p1Id
+  const winner: 'p1' | 'p2' = isP1 ? 'p2' : 'p1'
+
+  // Stop the timer
+  if (game.timerHandle !== null) {
+    clearInterval(game.timerHandle)
+    game.timerHandle = null
+  }
+
+  game.status = 'comparing'
+
+  // Build arrangements: surrenderer gets forfeit, opponent keeps their submission
+  const surrendererHand = game.hands.get(surrenderingPlayerId)!
+  const surrendererArr = createForfeitArrangement(surrenderingPlayerId, surrendererHand)
+
+  const opponentId = isP1 ? p2Id : p1Id
+  const opponentArr
+    = game.submissions.get(opponentId)
+      ?? createForfeitArrangement(opponentId, game.hands.get(opponentId)!)
+
+  const p1Arr: PlayerArrangement = isP1 ? surrendererArr : opponentArr
+  const p2Arr: PlayerArrangement = isP1 ? opponentArr : surrendererArr
+
+  // Build a surrender result — surrenderer loses all 3 groups
+  const surrenderGroup = {
+    result: winner,
+    p1Hand: isP1 ? 'Surrender' : 'Win',
+    p2Hand: isP1 ? 'Win' : 'Surrender',
+    p1Foul: false,
+    p2Foul: false,
+  } as const
+
+  const result = {
+    group1: surrenderGroup,
+    group2: surrenderGroup,
+    group3: surrenderGroup,
+    winner,
+    p1Score: isP1 ? 0 : 3,
+    p2Score: isP1 ? 3 : 0,
+    p1Foul: false,
+    p2Foul: false,
+    arrangements: {
+      p1: p1Arr,
+      p2: p2Arr,
+    },
+    surrendered: true,
+    surrenderedBy: surrenderingPlayerId,
+  }
+
+  // Persist arrangements
+  const db = getDb()
+  db.prepare(
+    `INSERT OR REPLACE INTO arrangements (room_code, player_id, arrangement_json, submitted_at)
+     VALUES (?, ?, ?, ?)`,
+  ).run(roomCode, p1Arr.playerId, JSON.stringify(p1Arr), Date.now())
+  db.prepare(
+    `INSERT OR REPLACE INTO arrangements (room_code, player_id, arrangement_json, submitted_at)
+     VALUES (?, ?, ?, ?)`,
+  ).run(roomCode, p2Arr.playerId, JSON.stringify(p2Arr), Date.now())
+
+  updateRoomStatus(roomCode, 'finished')
+
+  io.to(roomCode).emit(EVENTS.GAME_SURRENDERED, {
+    surrenderedBy: surrenderingPlayerId,
+    winner,
+  })
+  io.to(roomCode).emit(EVENTS.GAME_RESULT, result)
+
+  game.status = 'finished'
+  endGame(roomCode)
+
+  log.info({ roomCode, surrenderingPlayerId, winner }, 'Game resolved by surrender')
 }
 
 /** Helper to find the current socket ID for a player. */

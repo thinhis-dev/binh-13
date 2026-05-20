@@ -56,4 +56,18 @@ describe('useSocket', () => {
     expect(socket.off).toHaveBeenCalledWith('connect', expect.any(Function))
     expect(socket.off).toHaveBeenCalledWith('disconnect', expect.any(Function))
   })
+
+  it('surrender() emits EVENTS.GAME_SURRENDER with correct payload', () => {
+    const { result } = renderHook(() => useSocket())
+
+    act(() => {
+      result.current.surrender(42, 'ABCDEF')
+    })
+
+    expect(ensureSocketConnected).toHaveBeenCalled()
+    expect(socket.emit).toHaveBeenCalledWith(EVENTS.GAME_SURRENDER, {
+      playerId: 42,
+      code: 'ABCDEF',
+    })
+  })
 })

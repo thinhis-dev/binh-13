@@ -26,6 +26,8 @@ export const EVENTS = {
   GAME_SUBMIT: 'game:submit',
   GAME_OPPONENT_SUBMITTED: 'game:opponent_submitted',
   GAME_RESULT: 'game:result',
+  GAME_SURRENDER: 'game:surrender',
+  GAME_SURRENDERED: 'game:surrendered',
 
   ROOM_SETTINGS_UPDATE: 'room:settings_update',
   ROOM_SETTINGS_UPDATED: 'room:settings_updated',

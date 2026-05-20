@@ -17,6 +17,7 @@ import { Card } from '@/components/card/Card'
 import { GroupPanel } from '@/components/game/GroupPanel'
 import { HandArea } from '@/components/game/HandArea'
 import { OpponentArea } from '@/components/game/OpponentArea'
+import { SurrenderDialog } from '@/components/game/SurrenderDialog'
 import { Button } from '@/components/ui/button'
 import { useArrangement } from '@/hooks/useArrangement'
 import { useSocket } from '@/hooks/useSocket'
@@ -26,9 +27,11 @@ import { useSessionStore } from '@/stores/sessionStore'
 
 interface GameBoardProps {
   initialCards: CardType[]
+  onSurrender?: () => void
+  surrenderDisabled?: boolean
 }
 
-export function GameBoard({ initialCards }: GameBoardProps) {
+export function GameBoard({ initialCards, onSurrender, surrenderDisabled }: GameBoardProps) {
   const [activeCard, setActiveCard] = useState<CardType | null>(null)
   const [overGroupKey, setOverGroupKey] = useState<GroupKey | null>(null)
   const sensors = useSensors(
@@ -246,6 +249,9 @@ export function GameBoard({ initialCards }: GameBoardProps) {
           >
             Submit Arrangement
           </Button>
+          {onSurrender && (
+            <SurrenderDialog onSurrender={onSurrender} disabled={surrenderDisabled} />
+          )}
         </footer>
       </div>
 

@@ -433,4 +433,59 @@ describe('result page', () => {
     expect(allCards[1]).toHaveAttribute('aria-label', 'K of Diamonds')
     expect(allCards[4]).toHaveAttribute('aria-label', '3 of Spades')
   })
+
+  // ─── Surrender result display ───────────────────────────────────────────────
+
+  it('shows "You Surrendered" banner when current player surrendered', () => {
+    useGameStore.getState().setResult(
+      makeResult({
+        winner: 'p2',
+        p1Score: 0,
+        p2Score: 3,
+        surrendered: true,
+        surrenderedBy: 1, // playerId 1 = current player (Alice)
+      }),
+    )
+    renderResult()
+    expect(screen.getByText(/you surrendered/i)).toBeInTheDocument()
+  })
+
+  it('shows "Opponent Surrendered" banner when opponent surrendered', () => {
+    useGameStore.getState().setResult(
+      makeResult({
+        winner: 'p1',
+        p1Score: 3,
+        p2Score: 0,
+        surrendered: true,
+        surrenderedBy: 2, // playerId 2 = opponent
+      }),
+    )
+    renderResult()
+    expect(screen.getByText(/opponent surrendered/i)).toBeInTheDocument()
+  })
+
+  it('hides group breakdown when result is a surrender', () => {
+    useGameStore.getState().setResult(
+      makeResult({
+        winner: 'p2',
+        surrendered: true,
+        surrenderedBy: 1,
+      }),
+    )
+    renderResult()
+    expect(screen.queryByText('Group Breakdown')).not.toBeInTheDocument()
+  })
+
+  it('still shows Rematch and Leave buttons on a surrender result', () => {
+    useGameStore.getState().setResult(
+      makeResult({
+        winner: 'p2',
+        surrendered: true,
+        surrenderedBy: 1,
+      }),
+    )
+    renderResult()
+    expect(screen.getByRole('button', { name: 'Rematch' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Leave' })).toBeInTheDocument()
+  })
 })

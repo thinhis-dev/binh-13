@@ -24,6 +24,14 @@ describe('eVENTS', () => {
   it('has GAME_START event', () => {
     expect(EVENTS.GAME_START).toBe('game:start')
   })
+
+  it('has GAME_SURRENDER event', () => {
+    expect(EVENTS.GAME_SURRENDER).toBe('game:surrender')
+  })
+
+  it('has GAME_SURRENDERED event', () => {
+    expect(EVENTS.GAME_SURRENDERED).toBe('game:surrendered')
+  })
 })
 
 describe('dEFAULT_ROOM_SETTINGS', () => {

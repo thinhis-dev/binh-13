@@ -73,24 +73,36 @@ export default function Result() {
     <div className="mx-auto flex min-h-screen w-full max-w-lg flex-col items-center justify-center gap-6 p-4">
       {/* Winner / Loser banner */}
       <div className="text-center">
-        {isDraw
+        {result.surrendered
           ? (
-              <h1 className="text-3xl font-bold text-yellow-600">Draw!</h1>
+              result.surrenderedBy === playerId
+                ? (
+                    <h1 className="text-3xl font-bold text-red-500">You Surrendered</h1>
+                  )
+                : (
+                    <h1 className="text-3xl font-bold text-green-600">
+                      Opponent Surrendered — You Win! 🎉
+                    </h1>
+                  )
             )
-          : didWin
+          : isDraw
             ? (
-                <h1 className="text-3xl font-bold text-green-600">You Win! 🎉</h1>
+                <h1 className="text-3xl font-bold text-yellow-600">Draw!</h1>
               )
-            : (
-                <h1 className="text-3xl font-bold text-red-500">You Lose</h1>
-              )}
+            : didWin
+              ? (
+                  <h1 className="text-3xl font-bold text-green-600">You Win! 🎉</h1>
+                )
+              : (
+                  <h1 className="text-3xl font-bold text-red-500">You Lose</h1>
+                )}
 
-        {isFoul && (
+        {isFoul && !result.surrendered && (
           <p className="mt-1 text-sm text-red-500">
             Your arrangement fouled (middle stronger than back).
           </p>
         )}
-        {opponentFoul && (
+        {opponentFoul && !result.surrendered && (
           <p className="mt-1 text-sm text-green-600">
             Opponent fouled — auto-loss for them.
           </p>
@@ -114,22 +126,24 @@ export default function Result() {
         </div>
       </div>
 
-      {/* Group-by-group breakdown */}
-      <div className="w-full space-y-4">
-        <h2 className="text-sm font-semibold text-muted-foreground">
-          Group Breakdown
-        </h2>
-        {groups.map((group, i) => (
-          <ResultGroupDisplay
-            key={i}
-            groupLabel={GROUP_LABELS[i]}
-            comparison={group}
-            myCards={groupCards[i].myCards}
-            opponentCards={groupCards[i].opponentCards}
-            mySide={mySide}
-          />
-        ))}
-      </div>
+      {/* Group-by-group breakdown — hidden on surrender */}
+      {!result.surrendered && (
+        <div className="w-full space-y-4">
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            Group Breakdown
+          </h2>
+          {groups.map((group, i) => (
+            <ResultGroupDisplay
+              key={i}
+              groupLabel={GROUP_LABELS[i]}
+              comparison={group}
+              myCards={groupCards[i].myCards}
+              opponentCards={groupCards[i].opponentCards}
+              mySide={mySide}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Rematch / Leave */}
       <div className="flex gap-3">
