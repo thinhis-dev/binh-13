@@ -4,6 +4,7 @@ import { cors } from 'hono/cors'
 import { Server as SocketServer } from 'socket.io'
 import { initDb } from './db'
 import { registerGameEvents } from './game/gameEvents'
+import { registerRematchEvents } from './game/rematchEvents'
 import { logger } from './lib/logger'
 import { registerRoomEvents } from './rooms/roomEvents'
 
@@ -51,6 +52,7 @@ export function createRealtimeServer() {
 
   registerRoomEvents(io)
   registerGameEvents(io)
+  registerRematchEvents(io)
 
   return { app, httpServer, io }
 }

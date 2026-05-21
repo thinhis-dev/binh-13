@@ -3,6 +3,7 @@ import { EVENTS } from '@binh-13/shared'
 import { z } from 'zod'
 import { triggerGameStart } from '../game/gameEvents'
 import { endGame } from '../game/gameManager'
+import { handleRematchOnPlayerExit } from '../game/rematchEvents'
 import { createChildLogger } from '../lib/logger'
 import {
   createSession,
@@ -175,6 +176,9 @@ export function registerRoomEvents(io: Server): void {
         emitError(socket, 'Player is not in this room')
         return
       }
+
+      // Cancel any pending rematch before leaving
+      handleRematchOnPlayerExit(io, data.code, data.playerId, 'left')
 
       leaveRoom(data.code, data.playerId)
       socket.leave(data.code)
@@ -420,6 +424,9 @@ function handleDisconnect(io: Server, socket: Socket): void {
   const room = getRoomByPlayer(session.playerId)
   if (!room)
     return
+
+  // Cancel any pending rematch before the player is removed
+  handleRematchOnPlayerExit(io, room.code, session.playerId, 'disconnected')
 
   leaveRoom(room.code, session.playerId)
   io.to(room.code).emit(EVENTS.ROOM_LEFT, { playerId: session.playerId })

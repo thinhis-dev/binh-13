@@ -121,3 +121,8 @@ export interface SessionResult {
   p2RoundsWon: number
   sessionWinner: 'p1' | 'p2' | 'draw' | null // null while in progress
 }
+
+export interface RematchState {
+  requested: boolean // whether current player has requested
+  opponentRequested: boolean // whether opponent has requested
+}

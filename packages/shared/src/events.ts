@@ -29,6 +29,12 @@ export const EVENTS = {
   GAME_SURRENDER: 'game:surrender',
   GAME_SURRENDERED: 'game:surrendered',
 
+  GAME_REMATCH_REQUEST: 'game:rematch_request',
+  GAME_REMATCH_REQUESTED: 'game:rematch_requested',
+  GAME_REMATCH_ACCEPTED: 'game:rematch_accepted',
+  GAME_REMATCH_DECLINED: 'game:rematch_declined',
+  GAME_REMATCH_CANCELLED: 'game:rematch_cancelled',
+
   ROOM_SETTINGS_UPDATE: 'room:settings_update',
   ROOM_SETTINGS_UPDATED: 'room:settings_updated',
 

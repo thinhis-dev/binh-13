@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ResultGroupDisplay } from '@/components/game/ResultGroupDisplay'
 import { Button } from '@/components/ui/button'
@@ -14,8 +14,14 @@ export default function Result() {
   const navigate = useNavigate()
   const { code } = useParams<{ code: string }>()
   const result = useGameStore(s => s.result)
+  const hand = useGameStore(s => s.hand)
   const playerId = useSessionStore(s => s.playerId)
-  const { leaveRoom } = useSocket()
+  const rematchRequested = useGameStore(s => s.rematchRequested)
+  const rematchOpponentRequested = useGameStore(s => s.rematchOpponentRequested)
+  const rematchCancelledReason = useGameStore(s => s.rematchCancelledReason)
+  const setRematchRequested = useGameStore(s => s.setRematchRequested)
+  const setRematchCancelledReason = useGameStore(s => s.setRematchCancelledReason)
+  const { leaveRoom, requestRematch, declineRematch } = useSocket()
   const reset = useGameStore(s => s.reset)
 
   const mySide: PlayerSide = useMemo(
@@ -29,10 +35,35 @@ export default function Result() {
   const isFoul = mySide === 'p1' ? result?.p1Foul : result?.p2Foul
   const opponentFoul = opponentSide === 'p1' ? result?.p1Foul : result?.p2Foul
 
+  // When a new game starts after rematch (reset clears result, then GAME_DEALT sets hand),
+  // navigate to the game page.
+  useEffect(() => {
+    if (hand.length > 0 && !result) {
+      navigate(`/room/${code}/game`, { replace: true })
+    }
+  }, [hand, result, navigate, code])
+
   const handleRematch = useCallback(() => {
-    reset()
-    navigate(`/room/${code}`)
-  }, [reset, navigate, code])
+    if (!playerId || !code)
+      return
+    setRematchRequested(true)
+    setRematchCancelledReason(null)
+    requestRematch(playerId, code)
+  }, [playerId, code, requestRematch, setRematchRequested, setRematchCancelledReason])
+
+  const handleAcceptRematch = useCallback(() => {
+    if (!playerId || !code)
+      return
+    setRematchRequested(true)
+    setRematchCancelledReason(null)
+    requestRematch(playerId, code)
+  }, [playerId, code, requestRematch, setRematchRequested, setRematchCancelledReason])
+
+  const handleDeclineRematch = useCallback(() => {
+    if (!playerId || !code)
+      return
+    declineRematch(playerId, code)
+  }, [playerId, code, declineRematch])
 
   const handleLeave = useCallback(() => {
     if (playerId && code)
@@ -68,6 +99,9 @@ export default function Result() {
       opponentCards: opponentArrangement.group3,
     },
   ] as const
+
+  const opponentLeft
+    = rematchCancelledReason === 'left' || rematchCancelledReason === 'disconnected'
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-lg flex-col items-center justify-center gap-6 p-4">
@@ -145,9 +179,51 @@ export default function Result() {
         </div>
       )}
 
+      {/* Rematch cancellation notice */}
+      {rematchCancelledReason && (
+        <p
+          data-testid="rematch-cancelled-notice"
+          className="rounded-md bg-yellow-50 px-4 py-2 text-sm text-yellow-800"
+        >
+          {rematchCancelledReason === 'declined'
+            ? 'Opponent declined rematch'
+            : 'Opponent left the room'}
+        </p>
+      )}
+
+      {/* Opponent wants rematch banner */}
+      {rematchOpponentRequested && !rematchRequested && (
+        <div
+          data-testid="rematch-opponent-banner"
+          className="flex w-full flex-col items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3"
+        >
+          <p className="text-sm font-medium text-blue-800">
+            Opponent wants a rematch!
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={handleAcceptRematch}>
+              Accept
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleDeclineRematch}>
+              Decline
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Rematch / Leave */}
       <div className="flex gap-3">
-        <Button onClick={handleRematch}>Rematch</Button>
+        {!opponentLeft && !rematchOpponentRequested && (
+          rematchRequested
+            ? (
+                <Button disabled aria-label="Waiting for opponent">
+                  Waiting for opponent…
+                </Button>
+              )
+            : (
+                <Button onClick={handleRematch}>Rematch</Button>
+              )
+        )}
         <Button variant="outline" onClick={handleLeave}>
           Leave
         </Button>

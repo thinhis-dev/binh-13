@@ -116,3 +116,54 @@ describe('gameStore - settings', () => {
     expect(useGameStore.getState().settings).toBeNull()
   })
 })
+
+describe('gameStore - rematch state', () => {
+  beforeEach(() => {
+    useGameStore.getState().reset()
+  })
+
+  it('rematchRequested starts as false', () => {
+    expect(useGameStore.getState().rematchRequested).toBe(false)
+  })
+
+  it('rematchOpponentRequested starts as false', () => {
+    expect(useGameStore.getState().rematchOpponentRequested).toBe(false)
+  })
+
+  it('rematchCancelledReason starts as null', () => {
+    expect(useGameStore.getState().rematchCancelledReason).toBeNull()
+  })
+
+  it('setRematchRequested(true) sets rematchRequested to true', () => {
+    useGameStore.getState().setRematchRequested(true)
+    expect(useGameStore.getState().rematchRequested).toBe(true)
+  })
+
+  it('setRematchOpponentRequested(true) sets rematchOpponentRequested to true', () => {
+    useGameStore.getState().setRematchOpponentRequested(true)
+    expect(useGameStore.getState().rematchOpponentRequested).toBe(true)
+  })
+
+  it('setRematchCancelledReason stores the reason', () => {
+    useGameStore.getState().setRematchCancelledReason('declined')
+    expect(useGameStore.getState().rematchCancelledReason).toBe('declined')
+
+    useGameStore.getState().setRematchCancelledReason('left')
+    expect(useGameStore.getState().rematchCancelledReason).toBe('left')
+
+    useGameStore.getState().setRematchCancelledReason('disconnected')
+    expect(useGameStore.getState().rematchCancelledReason).toBe('disconnected')
+  })
+
+  it('reset() clears all rematch state fields', () => {
+    useGameStore.getState().setRematchRequested(true)
+    useGameStore.getState().setRematchOpponentRequested(true)
+    useGameStore.getState().setRematchCancelledReason('declined')
+
+    useGameStore.getState().reset()
+
+    expect(useGameStore.getState().rematchRequested).toBe(false)
+    expect(useGameStore.getState().rematchOpponentRequested).toBe(false)
+    expect(useGameStore.getState().rematchCancelledReason).toBeNull()
+  })
+})

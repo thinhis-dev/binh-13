@@ -17,6 +17,9 @@ interface GameState {
   timerExpired: boolean
   opponentSubmitted: boolean
   submitted: boolean
+  rematchRequested: boolean
+  rematchOpponentRequested: boolean
+  rematchCancelledReason: 'declined' | 'disconnected' | 'left' | null
   setRoom: (room: Room) => void
   setHand: (hand: Card[]) => void
   setArrangement: (arrangement: Partial<PlayerArrangement>) => void
@@ -26,6 +29,9 @@ interface GameState {
   setTimerExpired: (v: boolean) => void
   setOpponentSubmitted: (v: boolean) => void
   setSubmitted: (v: boolean) => void
+  setRematchRequested: (v: boolean) => void
+  setRematchOpponentRequested: (v: boolean) => void
+  setRematchCancelledReason: (reason: 'declined' | 'disconnected' | 'left' | null) => void
   reset: () => void
 }
 
@@ -39,6 +45,9 @@ const initialState = {
   timerExpired: false,
   opponentSubmitted: false,
   submitted: false,
+  rematchRequested: false,
+  rematchOpponentRequested: false,
+  rematchCancelledReason: null as 'declined' | 'disconnected' | 'left' | null,
 }
 
 export const useGameStore = create<GameState>()(set => ({
@@ -56,5 +65,8 @@ export const useGameStore = create<GameState>()(set => ({
   setTimerExpired: timerExpired => set({ timerExpired }),
   setOpponentSubmitted: opponentSubmitted => set({ opponentSubmitted }),
   setSubmitted: submitted => set({ submitted }),
+  setRematchRequested: rematchRequested => set({ rematchRequested }),
+  setRematchOpponentRequested: rematchOpponentRequested => set({ rematchOpponentRequested }),
+  setRematchCancelledReason: rematchCancelledReason => set({ rematchCancelledReason }),
   reset: () => set(initialState),
 }))

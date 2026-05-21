@@ -32,6 +32,14 @@ describe('eVENTS', () => {
   it('has GAME_SURRENDERED event', () => {
     expect(EVENTS.GAME_SURRENDERED).toBe('game:surrendered')
   })
+
+  it('has all GAME_REMATCH_* events with correct values', () => {
+    expect(EVENTS.GAME_REMATCH_REQUEST).toBe('game:rematch_request')
+    expect(EVENTS.GAME_REMATCH_REQUESTED).toBe('game:rematch_requested')
+    expect(EVENTS.GAME_REMATCH_ACCEPTED).toBe('game:rematch_accepted')
+    expect(EVENTS.GAME_REMATCH_DECLINED).toBe('game:rematch_declined')
+    expect(EVENTS.GAME_REMATCH_CANCELLED).toBe('game:rematch_cancelled')
+  })
 })
 
 describe('dEFAULT_ROOM_SETTINGS', () => {

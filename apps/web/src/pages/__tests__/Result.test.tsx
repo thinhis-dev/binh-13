@@ -1,4 +1,5 @@
 import type { Card, PlayerArrangement, RoundResult } from '@binh-13/shared'
+import { EVENTS } from '@binh-13/shared'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -186,24 +187,28 @@ describe('result page', () => {
     expect(icons.map(el => el.textContent)).toEqual(['✓', '✗', '✓'])
   })
 
-  it('navigates to lobby on Rematch click', async () => {
+  it('clicking Rematch emits GAME_REMATCH_REQUEST and shows waiting state', async () => {
     const user = userEvent.setup()
     useGameStore.getState().setResult(makeResult())
     renderResult()
 
     await user.click(screen.getByRole('button', { name: 'Rematch' }))
 
-    expect(screen.getByTestId('lobby')).toBeInTheDocument()
+    expect(socket.emit).toHaveBeenCalledWith(EVENTS.GAME_REMATCH_REQUEST, {
+      playerId: 1,
+      code: 'ABCDEF',
+    })
+    expect(screen.getByRole('button', { name: 'Waiting for opponent' })).toBeInTheDocument()
   })
 
-  it('resets game store on Rematch click', async () => {
+  it('clicking Rematch sets rematchRequested in store', async () => {
     const user = userEvent.setup()
     useGameStore.getState().setResult(makeResult())
     renderResult()
 
     await user.click(screen.getByRole('button', { name: 'Rematch' }))
 
-    expect(useGameStore.getState().result).toBeNull()
+    expect(useGameStore.getState().rematchRequested).toBe(true)
   })
 
   it('navigates to home on Leave click', async () => {
@@ -487,5 +492,141 @@ describe('result page', () => {
     renderResult()
     expect(screen.getByRole('button', { name: 'Rematch' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Leave' })).toBeInTheDocument()
+  })
+})
+
+// ─── Rematch UI tests ────────────────────────────────────────────────────────
+
+describe('result page - rematch flow', () => {
+  beforeEach(() => {
+    useSessionStore.getState().setSession(1, 'Alice')
+    useSessionStore.getState().setRoom('ABCDEF')
+    useGameStore.getState().reset()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    useSessionStore.getState().clearSession()
+    useGameStore.getState().reset()
+  })
+
+  it('default state: "Rematch" button is visible', () => {
+    useGameStore.getState().setResult(makeResult())
+    renderResult()
+    expect(screen.getByRole('button', { name: 'Rematch' })).toBeInTheDocument()
+  })
+
+  it('after clicking Rematch, button shows "Waiting for opponent…" and is disabled', async () => {
+    const user = userEvent.setup()
+    useGameStore.getState().setResult(makeResult())
+    renderResult()
+
+    await user.click(screen.getByRole('button', { name: 'Rematch' }))
+
+    const waitingBtn = screen.getByRole('button', { name: 'Waiting for opponent' })
+    expect(waitingBtn).toBeInTheDocument()
+    expect(waitingBtn).toBeDisabled()
+    expect(socket.emit).toHaveBeenCalledWith(EVENTS.GAME_REMATCH_REQUEST, {
+      playerId: 1,
+      code: 'ABCDEF',
+    })
+  })
+
+  it('opponent requested: banner appears with Accept/Decline buttons', () => {
+    useGameStore.getState().setResult(makeResult())
+    useGameStore.getState().setRematchOpponentRequested(true)
+    renderResult()
+
+    expect(screen.getByTestId('rematch-opponent-banner')).toBeInTheDocument()
+    expect(screen.getByText('Opponent wants a rematch!')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Accept' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Decline' })).toBeInTheDocument()
+  })
+
+  it('clicking Accept emits GAME_REMATCH_REQUEST', async () => {
+    const user = userEvent.setup()
+    useGameStore.getState().setResult(makeResult())
+    useGameStore.getState().setRematchOpponentRequested(true)
+    renderResult()
+
+    await user.click(screen.getByRole('button', { name: 'Accept' }))
+
+    expect(socket.emit).toHaveBeenCalledWith(EVENTS.GAME_REMATCH_REQUEST, {
+      playerId: 1,
+      code: 'ABCDEF',
+    })
+  })
+
+  it('clicking Decline emits GAME_REMATCH_DECLINED', async () => {
+    const user = userEvent.setup()
+    useGameStore.getState().setResult(makeResult())
+    useGameStore.getState().setRematchOpponentRequested(true)
+    renderResult()
+
+    await user.click(screen.getByRole('button', { name: 'Decline' }))
+
+    expect(socket.emit).toHaveBeenCalledWith(EVENTS.GAME_REMATCH_DECLINED, {
+      playerId: 1,
+      code: 'ABCDEF',
+    })
+  })
+
+  it('gAME_REMATCH_CANCELLED with reason "declined" shows "Opponent declined rematch"', () => {
+    useGameStore.getState().setResult(makeResult())
+    // The cancel handler resets rematchRequested to false and sets the reason
+    useGameStore.getState().setRematchCancelledReason('declined')
+    renderResult()
+
+    expect(screen.getByTestId('rematch-cancelled-notice')).toBeInTheDocument()
+    expect(screen.getByText('Opponent declined rematch')).toBeInTheDocument()
+    // Rematch button should be visible again (rematchRequested was reset to false)
+    expect(screen.getByRole('button', { name: 'Rematch' })).toBeInTheDocument()
+  })
+
+  it('gAME_REMATCH_CANCELLED with reason "left" shows "Opponent left the room" and hides Rematch button', () => {
+    useGameStore.getState().setResult(makeResult())
+    useGameStore.getState().setRematchCancelledReason('left')
+    renderResult()
+
+    expect(screen.getByText('Opponent left the room')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Rematch' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /waiting/i })).not.toBeInTheDocument()
+  })
+
+  it('gAME_REMATCH_CANCELLED with reason "disconnected" also hides Rematch button', () => {
+    useGameStore.getState().setResult(makeResult())
+    useGameStore.getState().setRematchCancelledReason('disconnected')
+    renderResult()
+
+    expect(screen.getByText('Opponent left the room')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Rematch' })).not.toBeInTheDocument()
+  })
+
+  it('leave button still works during pending rematch', async () => {
+    const user = userEvent.setup()
+    useGameStore.getState().setResult(makeResult())
+    useGameStore.getState().setRematchRequested(true)
+    renderResult()
+
+    // Waiting button visible
+    expect(screen.getByRole('button', { name: 'Waiting for opponent' })).toBeInTheDocument()
+
+    // Leave still works
+    await user.click(screen.getByRole('button', { name: 'Leave' }))
+
+    expect(socket.emit).toHaveBeenCalledWith(EVENTS.ROOM_LEAVE, {
+      playerId: 1,
+      code: 'ABCDEF',
+    })
+    expect(screen.getByTestId('home')).toBeInTheDocument()
+  })
+
+  it('banner is hidden when current player has also requested (both requested)', () => {
+    useGameStore.getState().setResult(makeResult())
+    useGameStore.getState().setRematchOpponentRequested(true)
+    useGameStore.getState().setRematchRequested(true)
+    renderResult()
+
+    expect(screen.queryByTestId('rematch-opponent-banner')).not.toBeInTheDocument()
   })
 })

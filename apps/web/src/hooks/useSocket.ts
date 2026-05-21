@@ -11,6 +11,10 @@ export function useSocket() {
   const setTimerExpired = useGameStore(s => s.setTimerExpired)
   const setOpponentSubmitted = useGameStore(s => s.setOpponentSubmitted)
   const setResult = useGameStore(s => s.setResult)
+  const setRematchOpponentRequested = useGameStore(s => s.setRematchOpponentRequested)
+  const setRematchRequested = useGameStore(s => s.setRematchRequested)
+  const setRematchCancelledReason = useGameStore(s => s.setRematchCancelledReason)
+  const reset = useGameStore(s => s.reset)
 
   const createSession = useCallback((name: string) => {
     ensureSocketConnected()
@@ -71,6 +75,16 @@ export function useSocket() {
     socket.emit(EVENTS.GAME_SURRENDER, { playerId, code })
   }, [])
 
+  const requestRematch = useCallback((playerId: number, code: string) => {
+    ensureSocketConnected()
+    socket.emit(EVENTS.GAME_REMATCH_REQUEST, { playerId, code })
+  }, [])
+
+  const declineRematch = useCallback((playerId: number, code: string) => {
+    ensureSocketConnected()
+    socket.emit(EVENTS.GAME_REMATCH_DECLINED, { playerId, code })
+  }, [])
+
   const destroySession = useCallback((playerId: number) => {
     ensureSocketConnected()
     socket.emit(EVENTS.SESSION_DESTROY, { playerId })
@@ -95,6 +109,20 @@ export function useSocket() {
     const handleResult = (result: RoundResult) => {
       setResult(result)
     }
+    const handleRematchRequested = () => {
+      setRematchOpponentRequested(true)
+    }
+    const handleRematchAccepted = () => {
+      reset()
+    }
+    const handleRematchCancelled = (payload: {
+      declinedBy: number
+      reason: 'declined' | 'disconnected' | 'left'
+    }) => {
+      setRematchRequested(false)
+      setRematchOpponentRequested(false)
+      setRematchCancelledReason(payload.reason)
+    }
 
     socket.on('connect', handleConnect)
     socket.on('disconnect', handleDisconnect)
@@ -102,6 +130,9 @@ export function useSocket() {
     socket.on(EVENTS.GAME_TIMER, handleTimer)
     socket.on(EVENTS.GAME_OPPONENT_SUBMITTED, handleOpponentSubmitted)
     socket.on(EVENTS.GAME_RESULT, handleResult)
+    socket.on(EVENTS.GAME_REMATCH_REQUESTED, handleRematchRequested)
+    socket.on(EVENTS.GAME_REMATCH_ACCEPTED, handleRematchAccepted)
+    socket.on(EVENTS.GAME_REMATCH_CANCELLED, handleRematchCancelled)
 
     return () => {
       socket.off('connect', handleConnect)
@@ -110,8 +141,11 @@ export function useSocket() {
       socket.off(EVENTS.GAME_TIMER, handleTimer)
       socket.off(EVENTS.GAME_OPPONENT_SUBMITTED, handleOpponentSubmitted)
       socket.off(EVENTS.GAME_RESULT, handleResult)
+      socket.off(EVENTS.GAME_REMATCH_REQUESTED, handleRematchRequested)
+      socket.off(EVENTS.GAME_REMATCH_ACCEPTED, handleRematchAccepted)
+      socket.off(EVENTS.GAME_REMATCH_CANCELLED, handleRematchCancelled)
     }
-  }, [setHand, setTimer, setTimerExpired, setOpponentSubmitted, setResult])
+  }, [setHand, setTimer, setTimerExpired, setOpponentSubmitted, setResult, setRematchOpponentRequested, reset, setRematchRequested, setRematchCancelledReason])
 
   return {
     connected,
@@ -124,6 +158,8 @@ export function useSocket() {
     submitArrangement,
     startGame,
     surrender,
+    requestRematch,
+    declineRematch,
     destroySession,
   }
 }
