@@ -35,6 +35,22 @@ describe('useSocket', () => {
     })
   })
 
+  it('getProfile() and updateProfile() emit their payloads', () => {
+    const { result } = renderHook(() => useSocket())
+
+    act(() => {
+      result.current.getProfile(1)
+      result.current.updateProfile(1, { name: 'New Name', avatar: 'fox' })
+    })
+
+    expect(socket.emit).toHaveBeenCalledWith(EVENTS.PROFILE_GET, { playerId: 1 })
+    expect(socket.emit).toHaveBeenCalledWith(EVENTS.PROFILE_UPDATE, {
+      playerId: 1,
+      name: 'New Name',
+      avatar: 'fox',
+    })
+  })
+
   it('startGame(), submitArrangement(), and destroySession() emit their payloads', () => {
     const { result } = renderHook(() => useSocket())
 

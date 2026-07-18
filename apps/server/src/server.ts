@@ -6,6 +6,7 @@ import { initDb } from './db'
 import { registerGameEvents } from './game/gameEvents'
 import { registerRematchEvents } from './game/rematchEvents'
 import { logger } from './lib/logger'
+import { registerProfileEvents } from './profile/profileEvents'
 import { registerRoomEvents } from './rooms/roomEvents'
 
 export function createRealtimeServer() {
@@ -53,6 +54,7 @@ export function createRealtimeServer() {
   registerRoomEvents(io)
   registerGameEvents(io)
   registerRematchEvents(io)
+  registerProfileEvents(io)
 
   return { app, httpServer, io }
 }

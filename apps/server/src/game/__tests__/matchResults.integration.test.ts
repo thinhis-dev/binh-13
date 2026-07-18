@@ -8,6 +8,7 @@ import {
   waitForEvent,
 } from '../../__tests__/helpers/socketClient'
 import { getDb } from '../../db'
+import { compareFiveCard } from '../evaluator'
 
 interface SessionCreatedPayload { playerId: number, name: string }
 interface RoomPayload { code: string }
@@ -64,12 +65,21 @@ describe('matchResults integration', () => {
   function validArrangement(playerId: number, hand: Card[]): PlayerArrangement {
     const RANK_ORDER = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
     const sorted = [...hand].sort((a, b) => RANK_ORDER.indexOf(b.rank) - RANK_ORDER.indexOf(a.rank))
-    return {
-      playerId,
-      group1: sorted.slice(0, 5) as PlayerArrangement['group1'],
-      group2: sorted.slice(5, 10) as PlayerArrangement['group2'],
-      group3: sorted.slice(10, 13) as PlayerArrangement['group3'],
+    let group1 = sorted.slice(0, 5) as PlayerArrangement['group1']
+    let group2 = sorted.slice(5, 10) as PlayerArrangement['group2']
+    const group3 = sorted.slice(10, 13) as PlayerArrangement['group3']
+
+    // Rank-sorting alone can occasionally produce a foul (e.g. lower cards
+    // forming a flush) — swap to guarantee group1 >= group2, same as the
+    // proven helper in gameEvents.integration.test.ts.
+    if (compareFiveCard(group1, group2) < 0) {
+      ;[group1, group2] = [
+        group2 as unknown as PlayerArrangement['group1'],
+        group1 as unknown as PlayerArrangement['group2'],
+      ]
     }
+
+    return { playerId, group1, group2, group3 }
   }
 
   it('a full round played over real sockets records one row that outlives the room (AC-A3-1)', async () => {

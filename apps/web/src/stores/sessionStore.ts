@@ -9,6 +9,7 @@ interface SessionState {
   avatar: string | null
   setSession: (playerId: number, name: string, token?: string) => void
   setRoom: (code: string | null) => void
+  setAvatar: (avatar: string) => void
   clearSession: () => void
 }
 
@@ -22,6 +23,7 @@ export const useSessionStore = create<SessionState>()(
       avatar: null,
       setSession: (playerId, name, token) => set({ playerId, name, token: token ?? get().token }),
       setRoom: roomCode => set({ roomCode }),
+      setAvatar: avatar => set({ avatar }),
       clearSession: () => set({ playerId: null, name: null, roomCode: null, token: null, avatar: null }),
     }),
     { name: 'binh13-session' },

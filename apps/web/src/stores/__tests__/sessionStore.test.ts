@@ -52,4 +52,9 @@ describe('sessionStore', () => {
 
     expect(useSessionStore.getState().token).toBeNull()
   })
+
+  it('setAvatar updates the persisted avatar', () => {
+    useSessionStore.getState().setAvatar('fox')
+    expect(useSessionStore.getState().avatar).toBe('fox')
+  })
 })

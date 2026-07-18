@@ -94,6 +94,19 @@ export function useSocket() {
     socket.emit(EVENTS.SESSION_DESTROY, { playerId })
   }, [])
 
+  const getProfile = useCallback((playerId: number) => {
+    ensureSocketConnected()
+    socket.emit(EVENTS.PROFILE_GET, { playerId })
+  }, [])
+
+  const updateProfile = useCallback(
+    (playerId: number, updates: { name?: string, avatar?: string }) => {
+      ensureSocketConnected()
+      socket.emit(EVENTS.PROFILE_UPDATE, { playerId, ...updates })
+    },
+    [],
+  )
+
   useEffect(() => {
     const handleConnect = () => setConnected(true)
     const handleDisconnect = () => setConnected(false)
@@ -193,5 +206,7 @@ export function useSocket() {
     requestRematch,
     declineRematch,
     destroySession,
+    getProfile,
+    updateProfile,
   }
 }

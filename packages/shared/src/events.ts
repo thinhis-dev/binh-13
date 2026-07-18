@@ -41,6 +41,11 @@ export const EVENTS = {
   ROOM_SETTINGS_UPDATE: 'room:settings_update',
   ROOM_SETTINGS_UPDATED: 'room:settings_updated',
 
+  PROFILE_GET: 'profile:get',
+  PROFILE_DATA: 'profile:data',
+  PROFILE_UPDATE: 'profile:update',
+  PROFILE_UPDATED: 'profile:updated',
+
   PLAYER_DISCONNECTED: 'player:disconnected',
   PLAYER_RECONNECTED: 'player:reconnected',
 

@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { EVENTS } from '@binh-13/shared'
 import axios from 'axios'
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useSocket } from '@/hooks/useSocket'
 import { socket } from '@/lib/socket'
@@ -211,6 +211,10 @@ export default function Home() {
                 >
                   Change
                 </button>
+                {' · '}
+                <Link className="underline hover:text-foreground transition-colors" to="/profile">
+                  Profile
+                </Link>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
