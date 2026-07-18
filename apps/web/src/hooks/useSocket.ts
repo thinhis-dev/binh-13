@@ -107,6 +107,16 @@ export function useSocket() {
     [],
   )
 
+  const register = useCallback((playerId: number, username: string, password: string) => {
+    ensureSocketConnected()
+    socket.emit(EVENTS.AUTH_REGISTER, { playerId, username, password })
+  }, [])
+
+  const login = useCallback((username: string, password: string) => {
+    ensureSocketConnected()
+    socket.emit(EVENTS.AUTH_LOGIN, { username, password })
+  }, [])
+
   useEffect(() => {
     const handleConnect = () => setConnected(true)
     const handleDisconnect = () => setConnected(false)
@@ -208,5 +218,7 @@ export function useSocket() {
     destroySession,
     getProfile,
     updateProfile,
+    register,
+    login,
   }
 }

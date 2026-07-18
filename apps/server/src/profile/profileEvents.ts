@@ -42,6 +42,7 @@ export function registerProfileEvents(io: Server): void {
         name: player.name,
         avatar: player.avatar,
         createdAt: player.createdAt,
+        username: player.username,
         stats: getPlayerStats(playerId),
       })
       log.info({ playerId }, 'Profile fetched')

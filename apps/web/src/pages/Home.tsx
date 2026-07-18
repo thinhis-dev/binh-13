@@ -19,18 +19,23 @@ type PendingAction = 'session' | 'create' | 'join' | null
 
 export default function Home() {
   const navigate = useNavigate()
-  const { createSession, createRoom, joinRoom, destroySession } = useSocket()
+  const { createSession, createRoom, joinRoom, destroySession, login } = useSocket()
   const playerId = useSessionStore(state => state.playerId)
   const storedName = useSessionStore(state => state.name)
   const setSession = useSessionStore(state => state.setSession)
   const setRoomCode = useSessionStore(state => state.setRoom)
   const setGameRoom = useGameStore(state => state.setRoom)
   const clearSession = useSessionStore(state => state.clearSession)
+  const replaceSession = useSessionStore(state => state.replaceSession)
+  const setUsername = useSessionStore(state => state.setUsername)
   const [health, setHealth] = useState<HealthResponse | null>(null)
   const [serverError, setServerError] = useState(false)
   const [name, setName] = useState(storedName ?? '')
   const [roomCode, setRoomCodeInput] = useState('')
   const [showJoin, setShowJoin] = useState(false)
+  const [showLogin, setShowLogin] = useState(false)
+  const [loginUsername, setLoginUsername] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [error, setError] = useState('')
 
@@ -80,12 +85,21 @@ export default function Home() {
       setPendingAction(null)
     }
 
+    const handleLoggedIn = (payload: { playerId: number, name: string, avatar: string, token: string }) => {
+      replaceSession(payload.playerId, payload.name, payload.avatar, payload.token)
+      setUsername(loginUsername.trim())
+      setShowLogin(false)
+      setPendingAction(null)
+      setError('')
+    }
+
     socket.on(EVENTS.SESSION_CREATED, handleSessionCreated)
     socket.on(EVENTS.ROOM_CREATED, handleRoomCreated)
     socket.on(EVENTS.ROOM_JOINED, handleRoomJoined)
     socket.on(EVENTS.ROOM_STATE, handleRoomState)
     socket.on(EVENTS.ERROR, handleError)
     socket.on(EVENTS.SESSION_DESTROYED, handleSessionDestroyed)
+    socket.on(EVENTS.AUTH_LOGGED_IN, handleLoggedIn)
     socket.on('connect_error', handleConnectError)
 
     return () => {
@@ -95,9 +109,10 @@ export default function Home() {
       socket.off(EVENTS.ROOM_STATE, handleRoomState)
       socket.off(EVENTS.ERROR, handleError)
       socket.off(EVENTS.SESSION_DESTROYED, handleSessionDestroyed)
+      socket.off(EVENTS.AUTH_LOGGED_IN, handleLoggedIn)
       socket.off('connect_error', handleConnectError)
     }
-  }, [navigate, setGameRoom, setRoomCode, setSession, clearSession])
+  }, [navigate, setGameRoom, setRoomCode, setSession, clearSession, replaceSession, setUsername, loginUsername])
 
   function handleStart(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -135,6 +150,15 @@ export default function Home() {
     destroySession(playerId)
   }
 
+  function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!loginUsername.trim() || !loginPassword)
+      return
+
+    setError('')
+    login(loginUsername.trim(), loginPassword)
+  }
+
   const hasSession = playerId !== null && storedName !== null
 
   return (
@@ -168,27 +192,66 @@ export default function Home() {
 
       {!hasSession
         ? (
-            <form className="w-full max-w-sm space-y-3" onSubmit={handleStart}>
-              <label className="block text-sm font-medium" htmlFor="player-name">
-                Name
-              </label>
-              <input
-                id="player-name"
-                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                maxLength={20}
-                required
-                value={name}
-                onChange={event => setName(event.target.value)}
-                placeholder="Alice"
-              />
-              <Button
-                className="w-full"
-                type="submit"
-                disabled={!name.trim() || pendingAction === 'session'}
-              >
-                {pendingAction === 'session' ? 'Starting...' : 'Start'}
-              </Button>
-            </form>
+            <div className="w-full max-w-sm space-y-3">
+              <form className="space-y-3" onSubmit={handleStart}>
+                <label className="block text-sm font-medium" htmlFor="player-name">
+                  Name
+                </label>
+                <input
+                  id="player-name"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  maxLength={20}
+                  required
+                  value={name}
+                  onChange={event => setName(event.target.value)}
+                  placeholder="Alice"
+                />
+                <Button
+                  className="w-full"
+                  type="submit"
+                  disabled={!name.trim() || pendingAction === 'session'}
+                >
+                  {pendingAction === 'session' ? 'Starting...' : 'Start'}
+                </Button>
+              </form>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  className="text-xs underline text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setShowLogin(value => !value)}
+                >
+                  Sign in
+                </button>
+              </div>
+
+              {showLogin && (
+                <form className="space-y-3" onSubmit={handleLogin}>
+                  <label className="block text-sm font-medium" htmlFor="login-username">
+                    Username
+                  </label>
+                  <input
+                    id="login-username"
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={loginUsername}
+                    onChange={event => setLoginUsername(event.target.value)}
+                  />
+                  <label className="block text-sm font-medium" htmlFor="login-password">
+                    Password
+                  </label>
+                  <input
+                    id="login-password"
+                    type="password"
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={loginPassword}
+                    onChange={event => setLoginPassword(event.target.value)}
+                  />
+                  <Button className="w-full" type="submit">
+                    Log in
+                  </Button>
+                </form>
+              )}
+            </div>
           )
         : (
             <div className="w-full max-w-sm space-y-4">

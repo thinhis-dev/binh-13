@@ -38,6 +38,7 @@ export interface PlayerProfile {
   avatar: string
   createdAt: number
   stats: PlayerStats
+  username: string | null
 }
 
 export const AVATARS = ['default', 'fox', 'panda', 'owl', 'tiger', 'rabbit'] as const

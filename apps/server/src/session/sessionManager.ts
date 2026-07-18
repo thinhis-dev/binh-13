@@ -19,6 +19,7 @@ export interface PlayerRecord {
   avatar: string
   createdAt: number
   lastSeenAt: number
+  username: string | null
 }
 
 interface PlayerRow {
@@ -27,6 +28,7 @@ interface PlayerRow {
   avatar: string
   created_at: number
   last_seen_at: number
+  username: string | null
 }
 
 /** Creates a durable `players` row plus an ephemeral `sessions` row for this connection. */
@@ -81,7 +83,7 @@ export function restoreSession(playerId: number, socketId: string): PlayerRecord
 
 export function getPlayer(playerId: number): PlayerRecord | undefined {
   const row = getDb()
-    .prepare('SELECT id, name, avatar, created_at, last_seen_at FROM players WHERE id = ?')
+    .prepare('SELECT id, name, avatar, created_at, last_seen_at, username FROM players WHERE id = ?')
     .get(playerId) as PlayerRow | undefined
 
   return row
@@ -91,6 +93,7 @@ export function getPlayer(playerId: number): PlayerRecord | undefined {
         avatar: row.avatar,
         createdAt: row.created_at,
         lastSeenAt: row.last_seen_at,
+        username: row.username,
       }
     : undefined
 }

@@ -59,7 +59,7 @@ describe('profile page', () => {
   it('editing the name and saving emits PROFILE_UPDATE', () => {
     renderProfile()
 
-    const input = screen.getByLabelText(/name/i)
+    const input = screen.getByLabelText('Name')
     fireEvent.change(input, { target: { value: 'New Name' } })
     fireEvent.click(screen.getByRole('button', { name: /save/i }))
 
@@ -106,5 +106,61 @@ describe('profile page', () => {
 
     expect(useSessionStore.getState().name).toBe('Renamed')
     expect(useSessionStore.getState().avatar).toBe('panda')
+  })
+
+  describe('claim account', () => {
+    function loadProfileWithUsername(username: string | null) {
+      renderProfile()
+      const handler = findHandler(EVENTS.PROFILE_DATA)
+      act(() => {
+        handler?.({
+          playerId: 7,
+          name: 'Binh',
+          avatar: 'default',
+          createdAt: Date.now(),
+          username,
+          stats: { games: 0, wins: 0, losses: 0, draws: 0, fouls: 0, sweeps: 0 },
+        })
+      })
+    }
+
+    it('shows a "Claim your account" register form when no username is set', () => {
+      loadProfileWithUsername(null)
+      expect(screen.getByText(/claim your account/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/username/i)).toBeInTheDocument()
+    })
+
+    it('submitting the register form emits AUTH_REGISTER', () => {
+      loadProfileWithUsername(null)
+
+      fireEvent.change(screen.getByLabelText(/username/i), { target: { value: 'alice_dev' } })
+      fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'password123' } })
+      fireEvent.click(screen.getByRole('button', { name: /claim account/i }))
+
+      expect(socket.emit).toHaveBeenCalledWith(EVENTS.AUTH_REGISTER, {
+        playerId: 7,
+        username: 'alice_dev',
+        password: 'password123',
+      })
+    })
+
+    it('shows "Signed in as {username}" once a username is set', () => {
+      loadProfileWithUsername('alice_dev')
+      expect(screen.getByText(/signed in as/i)).toBeInTheDocument()
+      expect(screen.getByText('alice_dev')).toBeInTheDocument()
+      expect(screen.queryByLabelText(/^password$/i)).not.toBeInTheDocument()
+    })
+
+    it('AUTH_REGISTERED switches the view to "Signed in as"', () => {
+      loadProfileWithUsername(null)
+      const handler = findHandler(EVENTS.AUTH_REGISTERED)
+
+      act(() => {
+        handler?.({ username: 'alice_dev' })
+      })
+
+      expect(screen.getByText(/signed in as/i)).toBeInTheDocument()
+      expect(useSessionStore.getState().username).toBe('alice_dev')
+    })
   })
 })

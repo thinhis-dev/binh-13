@@ -17,16 +17,20 @@ const STAT_LABELS: Array<{ key: keyof PlayerStats, label: string }> = [
 ]
 
 export default function Profile() {
-  const { getProfile, updateProfile } = useSocket()
+  const { getProfile, updateProfile, register } = useSocket()
   const playerId = useSessionStore(state => state.playerId)
   const storedName = useSessionStore(state => state.name)
   const setSession = useSessionStore(state => state.setSession)
   const setStoredAvatar = useSessionStore(state => state.setAvatar)
+  const username = useSessionStore(state => state.username)
+  const setUsername = useSessionStore(state => state.setUsername)
 
   const [stats, setStats] = useState<PlayerStats | null>(null)
   const [avatar, setAvatar] = useState('default')
   const [name, setName] = useState(storedName ?? '')
   const [error, setError] = useState('')
+  const [registerUsername, setRegisterUsername] = useState('')
+  const [registerPassword, setRegisterPassword] = useState('')
 
   useEffect(() => {
     if (playerId)
@@ -39,6 +43,11 @@ export default function Profile() {
       setStats(payload.stats)
       setAvatar(payload.avatar)
       setName(payload.name)
+      setUsername(payload.username)
+    }
+    const handleAuthRegistered = (payload: { username: string }) => {
+      setUsername(payload.username)
+      setError('')
     }
     const handleProfileUpdated = (payload: { name: string, avatar: string }) => {
       setName(payload.name)
@@ -54,14 +63,16 @@ export default function Profile() {
 
     socket.on(EVENTS.PROFILE_DATA, handleProfileData)
     socket.on(EVENTS.PROFILE_UPDATED, handleProfileUpdated)
+    socket.on(EVENTS.AUTH_REGISTERED, handleAuthRegistered)
     socket.on(EVENTS.ERROR, handleError)
 
     return () => {
       socket.off(EVENTS.PROFILE_DATA, handleProfileData)
       socket.off(EVENTS.PROFILE_UPDATED, handleProfileUpdated)
+      socket.off(EVENTS.AUTH_REGISTERED, handleAuthRegistered)
       socket.off(EVENTS.ERROR, handleError)
     }
-  }, [playerId, setSession, setStoredAvatar])
+  }, [playerId, setSession, setStoredAvatar, setUsername])
 
   function handleSave() {
     if (!playerId)
@@ -76,6 +87,13 @@ export default function Profile() {
     setAvatar(next)
     setError('')
     updateProfile(playerId, { name: name.trim(), avatar: next })
+  }
+
+  function handleRegister() {
+    if (!playerId)
+      return
+    setError('')
+    register(playerId, registerUsername.trim(), registerPassword)
   }
 
   if (!playerId) {
@@ -133,6 +151,48 @@ export default function Profile() {
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="space-y-3 rounded-md border border-input p-4">
+          {username
+            ? (
+                <p className="text-sm text-muted-foreground">
+                  Signed in as
+                  {' '}
+                  <span className="font-medium text-foreground">{username}</span>
+                </p>
+              )
+            : (
+                <>
+                  <span className="block text-sm font-medium">Claim your account</span>
+                  <p className="text-xs text-muted-foreground">
+                    Play the same identity across devices. Forgotten passwords can't be
+                    recovered — it's a game account.
+                  </p>
+                  <label className="block text-sm font-medium" htmlFor="register-username">
+                    Username
+                  </label>
+                  <input
+                    id="register-username"
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={registerUsername}
+                    onChange={event => setRegisterUsername(event.target.value)}
+                  />
+                  <label className="block text-sm font-medium" htmlFor="register-password">
+                    Password
+                  </label>
+                  <input
+                    id="register-password"
+                    type="password"
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={registerPassword}
+                    onChange={event => setRegisterPassword(event.target.value)}
+                  />
+                  <Button className="w-full" type="button" onClick={handleRegister}>
+                    Claim account
+                  </Button>
+                </>
+              )}
         </div>
 
         <div className="space-y-3">

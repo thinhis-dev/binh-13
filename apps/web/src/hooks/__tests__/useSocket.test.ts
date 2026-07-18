@@ -51,6 +51,25 @@ describe('useSocket', () => {
     })
   })
 
+  it('register() and login() emit their payloads', () => {
+    const { result } = renderHook(() => useSocket())
+
+    act(() => {
+      result.current.register(1, 'alice_dev', 'password123')
+      result.current.login('alice_dev', 'password123')
+    })
+
+    expect(socket.emit).toHaveBeenCalledWith(EVENTS.AUTH_REGISTER, {
+      playerId: 1,
+      username: 'alice_dev',
+      password: 'password123',
+    })
+    expect(socket.emit).toHaveBeenCalledWith(EVENTS.AUTH_LOGIN, {
+      username: 'alice_dev',
+      password: 'password123',
+    })
+  })
+
   it('startGame(), submitArrangement(), and destroySession() emit their payloads', () => {
     const { result } = renderHook(() => useSocket())
 

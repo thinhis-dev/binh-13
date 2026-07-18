@@ -57,4 +57,24 @@ describe('sessionStore', () => {
     useSessionStore.getState().setAvatar('fox')
     expect(useSessionStore.getState().avatar).toBe('fox')
   })
+
+  it('setUsername updates the persisted username', () => {
+    useSessionStore.getState().setUsername('alice_dev')
+    expect(useSessionStore.getState().username).toBe('alice_dev')
+  })
+
+  it('replaceSession fully replaces identity (e.g. on login) and clears roomCode', () => {
+    useSessionStore.getState().setSession(7, 'Binh', 'old-token')
+    useSessionStore.getState().setRoom('ABC123')
+
+    useSessionStore.getState().replaceSession(99, 'Other Account', 'panda', 'new-token')
+
+    expect(useSessionStore.getState()).toMatchObject({
+      playerId: 99,
+      name: 'Other Account',
+      avatar: 'panda',
+      token: 'new-token',
+      roomCode: null,
+    })
+  })
 })
