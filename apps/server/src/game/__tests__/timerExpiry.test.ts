@@ -57,7 +57,10 @@ function validArrangementFromHand(
 
 vi.mock('../../db', () => ({
   getDb: () => ({
-    prepare: () => ({ run: vi.fn() }),
+    prepare: () => ({
+      run: vi.fn(),
+      get: vi.fn(() => ({ maxRound: 0 })),
+    }),
   }),
 }))
 

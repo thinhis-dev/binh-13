@@ -18,6 +18,7 @@ import {
   startGame,
   submitArrangement,
 } from './gameManager'
+import { nextRoundNumber, recordRoundResult } from './matchResults'
 
 const log = createChildLogger({ module: 'gameEvents' })
 
@@ -158,6 +159,7 @@ function resolveRound(
 
   updateRoomStatus(roomCode, 'finished')
   io.to(roomCode).emit(EVENTS.GAME_RESULT, result)
+  recordRoundResult(roomCode, nextRoundNumber(roomCode), result, p1Arr.playerId, p2Arr.playerId)
 
   game.status = 'finished'
   endGame(roomCode)
@@ -503,6 +505,7 @@ export function handleSurrender(
     winner,
   })
   io.to(roomCode).emit(EVENTS.GAME_RESULT, result)
+  recordRoundResult(roomCode, nextRoundNumber(roomCode), result, p1Arr.playerId, p2Arr.playerId)
 
   game.status = 'finished'
   endGame(roomCode)

@@ -38,6 +38,18 @@ export function recordRoundResult(
   logger.debug({ roomCode, round, p1Id, p2Id, winner: result.winner }, 'Round result recorded')
 }
 
+/**
+ * There's no persistent round counter elsewhere (rematches replay a fresh
+ * single-round game in the same room), so the next round number for a room
+ * is simply one past however many rounds are already recorded for it.
+ */
+export function nextRoundNumber(roomCode: string): number {
+  const row = getDb()
+    .prepare('SELECT COALESCE(MAX(round), 0) AS maxRound FROM match_results WHERE room_code = ?')
+    .get(roomCode) as { maxRound: number }
+  return row.maxRound + 1
+}
+
 export function getPlayerStats(playerId: number): PlayerStats {
   const row = getDb()
     .prepare(
