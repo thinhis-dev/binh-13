@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 
 const SCRYPT_N = 16384

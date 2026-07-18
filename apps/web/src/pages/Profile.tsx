@@ -35,8 +35,7 @@ export default function Profile() {
   useEffect(() => {
     if (playerId)
       getProfile(playerId)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playerId])
+  }, [playerId, getProfile])
 
   useEffect(() => {
     const handleProfileData = (payload: PlayerProfile) => {

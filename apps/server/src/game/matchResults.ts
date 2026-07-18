@@ -64,13 +64,13 @@ export function getPlayerStats(playerId: number): PlayerStats {
        WHERE p1_id = @playerId OR p2_id = @playerId`,
     )
     .get({ playerId }) as {
-      games: number
-      wins: number | null
-      losses: number | null
-      draws: number | null
-      fouls: number | null
-      sweeps: number | null
-    }
+    games: number
+    wins: number | null
+    losses: number | null
+    draws: number | null
+    fouls: number | null
+    sweeps: number | null
+  }
 
   return {
     games: row.games,

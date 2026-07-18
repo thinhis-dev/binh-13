@@ -77,7 +77,7 @@ describe('profileEvents integration', () => {
     await Promise.all([r1, r2])
   }
 
-  it('PROFILE_GET returns aggregated stats after played rounds (AC-A3-4)', async () => {
+  it('profile:get returns aggregated stats after played rounds (AC-A3-4)', async () => {
     const s1 = await connect()
     const s2 = await connect()
     const p1 = await createSession(s1, 'Alice')
@@ -110,7 +110,7 @@ describe('profileEvents integration', () => {
     expect(data.stats).toEqual({ games: 0, wins: 0, losses: 0, draws: 0, fouls: 0, sweeps: 0 })
   })
 
-  it('PROFILE_UPDATE roundtrips name/avatar and persists across SESSION_RESTORE (AC-A3-5)', async () => {
+  it('profile:update roundtrips name/avatar and persists across SESSION_RESTORE (AC-A3-5)', async () => {
     const s1 = await connect()
     const p1 = await createSession(s1, 'Alice')
 
@@ -125,7 +125,7 @@ describe('profileEvents integration', () => {
     await expect(profile).resolves.toMatchObject({ name: 'Alicia', avatar: 'fox' })
   })
 
-  it('PROFILE_UPDATE rejects an invalid avatar and an invalid name, leaving the row unchanged', async () => {
+  it('profile:update rejects an invalid avatar and an invalid name, leaving the row unchanged', async () => {
     const s1 = await connect()
     const p1 = await createSession(s1, 'Alice')
 

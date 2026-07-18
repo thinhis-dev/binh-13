@@ -100,7 +100,7 @@ describe('home page - sign in', () => {
     })
   })
 
-  it('AUTH_LOGGED_IN replaces the session with the logged-in identity', () => {
+  it('auth:logged_in replaces the session with the logged-in identity', () => {
     renderHome()
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
 

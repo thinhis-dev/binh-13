@@ -151,7 +151,7 @@ describe('profile page', () => {
       expect(screen.queryByLabelText(/^password$/i)).not.toBeInTheDocument()
     })
 
-    it('AUTH_REGISTERED switches the view to "Signed in as"', () => {
+    it('aUTH_REGISTERED switches the view to "Signed in as"', () => {
       loadProfileWithUsername(null)
       const handler = findHandler(EVENTS.AUTH_REGISTERED)
 

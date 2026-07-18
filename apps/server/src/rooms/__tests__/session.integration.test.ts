@@ -42,7 +42,7 @@ describe('session integration', () => {
     return created
   }
 
-  it('SESSION_CREATE replies with a token and persists players + sessions rows (AC-A1-1)', async () => {
+  it('session:create replies with a token and persists players + sessions rows (AC-A1-1)', async () => {
     const socket = await connectClient()
     const created = await createSession(socket, 'Alice')
 
@@ -80,7 +80,7 @@ describe('session integration', () => {
     await failed
   })
 
-  it('SESSION_DESTROY keeps the players row and a later SESSION_RESTORE with the same token still works (AC-A1-4)', async () => {
+  it('session:destroy keeps the players row and a later SESSION_RESTORE with the same token still works (AC-A1-4)', async () => {
     const s1 = await connectClient()
     const created = await createSession(s1, 'Carol')
 

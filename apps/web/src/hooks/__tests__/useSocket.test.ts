@@ -303,7 +303,7 @@ describe('useSocket - session restore-on-boot', () => {
     expect(socket.emit).not.toHaveBeenCalledWith(EVENTS.SESSION_RESTORE, expect.anything())
   })
 
-  it('SESSION_CREATED saves the token into the session store', () => {
+  it('session:created saves the token into the session store', () => {
     renderHook(() => useSocket())
     const socketOn = vi.mocked(socket.on)
     const handler = socketOn.mock.calls.find(([event]) => event === EVENTS.SESSION_CREATED)?.[1]
@@ -319,7 +319,7 @@ describe('useSocket - session restore-on-boot', () => {
     })
   })
 
-  it('SESSION_RESTORED hydrates the store with the restored identity', () => {
+  it('session:restored hydrates the store with the restored identity', () => {
     renderHook(() => useSocket())
     const socketOn = vi.mocked(socket.on)
     const handler = socketOn.mock.calls.find(([event]) => event === EVENTS.SESSION_RESTORED)?.[1]
@@ -334,7 +334,7 @@ describe('useSocket - session restore-on-boot', () => {
     })
   })
 
-  it('SESSION_RESTORE_FAILED clears the stored session', () => {
+  it('session:restore_failed clears the stored session', () => {
     useSessionStore.getState().setSession(9, 'Bob', 'stale-token')
 
     renderHook(() => useSocket())

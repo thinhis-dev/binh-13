@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 import jwt from 'jsonwebtoken'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { signPlayerToken, verifyPlayerToken } from '../token'
