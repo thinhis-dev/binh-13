@@ -5,20 +5,24 @@ interface SessionState {
   playerId: number | null
   name: string | null
   roomCode: string | null
-  setSession: (playerId: number, name: string) => void
+  token: string | null
+  avatar: string | null
+  setSession: (playerId: number, name: string, token?: string) => void
   setRoom: (code: string | null) => void
   clearSession: () => void
 }
 
 export const useSessionStore = create<SessionState>()(
   persist(
-    set => ({
+    (set, get) => ({
       playerId: null,
       name: null,
       roomCode: null,
-      setSession: (playerId, name) => set({ playerId, name }),
+      token: null,
+      avatar: null,
+      setSession: (playerId, name, token) => set({ playerId, name, token: token ?? get().token }),
       setRoom: roomCode => set({ roomCode }),
-      clearSession: () => set({ playerId: null, name: null, roomCode: null }),
+      clearSession: () => set({ playerId: null, name: null, roomCode: null, token: null, avatar: null }),
     }),
     { name: 'binh13-session' },
   ),

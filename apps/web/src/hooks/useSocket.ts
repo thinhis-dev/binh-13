@@ -1,11 +1,15 @@
 import type { Card, RoundResult } from '@binh-13/shared'
 import { EVENTS } from '@binh-13/shared'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ensureSocketConnected, socket } from '@/lib/socket'
 import { useGameStore } from '@/stores/gameStore'
+import { useSessionStore } from '@/stores/sessionStore'
 
 export function useSocket() {
   const [connected, setConnected] = useState(socket.connected)
+  const hasAttemptedRestoreRef = useRef(false)
+  const setSession = useSessionStore(s => s.setSession)
+  const clearSession = useSessionStore(s => s.clearSession)
   const setHand = useGameStore(s => s.setHand)
   const setTimer = useGameStore(s => s.setTimer)
   const setTimerExpired = useGameStore(s => s.setTimerExpired)
@@ -123,6 +127,15 @@ export function useSocket() {
       setRematchOpponentRequested(false)
       setRematchCancelledReason(payload.reason)
     }
+    const handleSessionCreated = (payload: { playerId: number, name: string, token: string }) => {
+      setSession(payload.playerId, payload.name, payload.token)
+    }
+    const handleSessionRestored = (payload: { playerId: number, name: string, avatar: string }) => {
+      setSession(payload.playerId, payload.name)
+    }
+    const handleSessionRestoreFailed = () => {
+      clearSession()
+    }
 
     socket.on('connect', handleConnect)
     socket.on('disconnect', handleDisconnect)
@@ -133,6 +146,9 @@ export function useSocket() {
     socket.on(EVENTS.GAME_REMATCH_REQUESTED, handleRematchRequested)
     socket.on(EVENTS.GAME_REMATCH_ACCEPTED, handleRematchAccepted)
     socket.on(EVENTS.GAME_REMATCH_CANCELLED, handleRematchCancelled)
+    socket.on(EVENTS.SESSION_CREATED, handleSessionCreated)
+    socket.on(EVENTS.SESSION_RESTORED, handleSessionRestored)
+    socket.on(EVENTS.SESSION_RESTORE_FAILED, handleSessionRestoreFailed)
 
     return () => {
       socket.off('connect', handleConnect)
@@ -144,8 +160,24 @@ export function useSocket() {
       socket.off(EVENTS.GAME_REMATCH_REQUESTED, handleRematchRequested)
       socket.off(EVENTS.GAME_REMATCH_ACCEPTED, handleRematchAccepted)
       socket.off(EVENTS.GAME_REMATCH_CANCELLED, handleRematchCancelled)
+      socket.off(EVENTS.SESSION_CREATED, handleSessionCreated)
+      socket.off(EVENTS.SESSION_RESTORED, handleSessionRestored)
+      socket.off(EVENTS.SESSION_RESTORE_FAILED, handleSessionRestoreFailed)
     }
-  }, [setHand, setTimer, setTimerExpired, setOpponentSubmitted, setResult, setRematchOpponentRequested, reset, setRematchRequested, setRematchCancelledReason])
+  }, [setHand, setTimer, setTimerExpired, setOpponentSubmitted, setResult, setRematchOpponentRequested, reset, setRematchRequested, setRematchCancelledReason, setSession, clearSession])
+
+  useEffect(() => {
+    if (hasAttemptedRestoreRef.current)
+      return
+
+    const { token } = useSessionStore.getState()
+    if (!token)
+      return
+
+    hasAttemptedRestoreRef.current = true
+    ensureSocketConnected()
+    socket.emit(EVENTS.SESSION_RESTORE, { token })
+  }, [])
 
   return {
     connected,

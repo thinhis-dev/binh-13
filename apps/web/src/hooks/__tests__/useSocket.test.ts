@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ensureSocketConnected, socket } from '@/lib/socket'
 import { useGameStore } from '@/stores/gameStore'
+import { useSessionStore } from '@/stores/sessionStore'
 import { useSocket } from '../useSocket'
 
 describe('useSocket', () => {
@@ -32,6 +33,63 @@ describe('useSocket', () => {
       code: 'ABC123',
       text: 'Ready',
     })
+  })
+
+  it('startGame(), submitArrangement(), and destroySession() emit their payloads', () => {
+    const { result } = renderHook(() => useSocket())
+
+    act(() => {
+      result.current.startGame(1, 'ABC123')
+      result.current.submitArrangement(1, 'ABC123', { group1: [], group2: [], group3: [] })
+      result.current.destroySession(1)
+    })
+
+    expect(socket.emit).toHaveBeenCalledWith(EVENTS.GAME_START, { playerId: 1, code: 'ABC123' })
+    expect(socket.emit).toHaveBeenCalledWith(EVENTS.GAME_SUBMIT, {
+      playerId: 1,
+      code: 'ABC123',
+      arrangement: { group1: [], group2: [], group3: [] },
+    })
+    expect(socket.emit).toHaveBeenCalledWith(EVENTS.SESSION_DESTROY, { playerId: 1 })
+  })
+
+  it('handles GAME_DEALT, GAME_TIMER, GAME_OPPONENT_SUBMITTED, and GAME_RESULT events', () => {
+    renderHook(() => useSocket())
+    const socketOn = vi.mocked(socket.on)
+    const dealtHandler = socketOn.mock.calls.find(([event]) => event === EVENTS.GAME_DEALT)?.[1]
+    const timerHandler = socketOn.mock.calls.find(([event]) => event === EVENTS.GAME_TIMER)?.[1]
+    const opponentSubmittedHandler = socketOn.mock.calls.find(([event]) => event === EVENTS.GAME_OPPONENT_SUBMITTED)?.[1]
+    const resultHandler = socketOn.mock.calls.find(([event]) => event === EVENTS.GAME_RESULT)?.[1]
+
+    act(() => {
+      dealtHandler?.({ hand: [], timerSeconds: 60 })
+      timerHandler?.({ secondsLeft: 30 })
+      opponentSubmittedHandler?.()
+    })
+
+    expect(useGameStore.getState().timerSeconds).toBe(30)
+    expect(useGameStore.getState().opponentSubmitted).toBe(true)
+
+    act(() => {
+      timerHandler?.({ secondsLeft: 0 })
+    })
+    expect(useGameStore.getState().timerExpired).toBe(true)
+
+    const resultPayload = {
+      group1: { result: 'p1', p1Hand: 'a', p2Hand: 'b', p1Foul: false, p2Foul: false },
+      group2: { result: 'p1', p1Hand: 'a', p2Hand: 'b', p1Foul: false, p2Foul: false },
+      group3: { result: 'p1', p1Hand: 'a', p2Hand: 'b', p1Foul: false, p2Foul: false },
+      winner: 'p1' as const,
+      p1Score: 3,
+      p2Score: 0,
+      p1Foul: false,
+      p2Foul: false,
+      arrangements: { p1: {} as never, p2: {} as never },
+    }
+    act(() => {
+      resultHandler?.(resultPayload)
+    })
+    expect(useGameStore.getState().result).toEqual(resultPayload)
   })
 
   it('tracks socket connection state from socket events', () => {
@@ -180,6 +238,83 @@ describe('useSocket', () => {
     expect(socket.off).toHaveBeenCalledWith(EVENTS.GAME_REMATCH_REQUESTED, expect.any(Function))
     expect(socket.off).toHaveBeenCalledWith(EVENTS.GAME_REMATCH_ACCEPTED, expect.any(Function))
     expect(socket.off).toHaveBeenCalledWith(EVENTS.GAME_REMATCH_CANCELLED, expect.any(Function))
+  })
+})
+
+describe('useSocket - session restore-on-boot', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    useSessionStore.getState().clearSession()
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    useSessionStore.getState().clearSession()
+  })
+
+  it('emits SESSION_RESTORE on mount when a token is already stored', () => {
+    useSessionStore.setState({ token: 'stored-token' })
+
+    renderHook(() => useSocket())
+
+    expect(ensureSocketConnected).toHaveBeenCalled()
+    expect(socket.emit).toHaveBeenCalledWith(EVENTS.SESSION_RESTORE, { token: 'stored-token' })
+  })
+
+  it('does not emit SESSION_RESTORE on mount when there is no stored token', () => {
+    renderHook(() => useSocket())
+
+    expect(socket.emit).not.toHaveBeenCalledWith(EVENTS.SESSION_RESTORE, expect.anything())
+  })
+
+  it('SESSION_CREATED saves the token into the session store', () => {
+    renderHook(() => useSocket())
+    const socketOn = vi.mocked(socket.on)
+    const handler = socketOn.mock.calls.find(([event]) => event === EVENTS.SESSION_CREATED)?.[1]
+
+    act(() => {
+      handler?.({ playerId: 5, name: 'Alice', token: 'new-token' })
+    })
+
+    expect(useSessionStore.getState()).toMatchObject({
+      playerId: 5,
+      name: 'Alice',
+      token: 'new-token',
+    })
+  })
+
+  it('SESSION_RESTORED hydrates the store with the restored identity', () => {
+    renderHook(() => useSocket())
+    const socketOn = vi.mocked(socket.on)
+    const handler = socketOn.mock.calls.find(([event]) => event === EVENTS.SESSION_RESTORED)?.[1]
+
+    act(() => {
+      handler?.({ playerId: 9, name: 'Bob', avatar: 'fox' })
+    })
+
+    expect(useSessionStore.getState()).toMatchObject({
+      playerId: 9,
+      name: 'Bob',
+    })
+  })
+
+  it('SESSION_RESTORE_FAILED clears the stored session', () => {
+    useSessionStore.getState().setSession(9, 'Bob', 'stale-token')
+
+    renderHook(() => useSocket())
+    const socketOn = vi.mocked(socket.on)
+    const handler = socketOn.mock.calls.find(([event]) => event === EVENTS.SESSION_RESTORE_FAILED)?.[1]
+
+    act(() => {
+      handler?.()
+    })
+
+    expect(useSessionStore.getState()).toMatchObject({
+      playerId: null,
+      name: null,
+      token: null,
+    })
   })
 })
 

@@ -31,4 +31,25 @@ describe('sessionStore', () => {
       roomCode: null,
     })
   })
+
+  it('persists the token alongside playerId/name', () => {
+    useSessionStore.getState().setSession(7, 'Binh', 'jwt-token-value')
+
+    expect(useSessionStore.getState().token).toBe('jwt-token-value')
+    expect(localStorage.getItem('binh13-session')).toContain('"token":"jwt-token-value"')
+  })
+
+  it('keeps the existing token when setSession is called without one', () => {
+    useSessionStore.getState().setSession(7, 'Binh', 'jwt-token-value')
+    useSessionStore.getState().setSession(7, 'Binh Updated')
+
+    expect(useSessionStore.getState().token).toBe('jwt-token-value')
+  })
+
+  it('clears the token on clearSession', () => {
+    useSessionStore.getState().setSession(7, 'Binh', 'jwt-token-value')
+    useSessionStore.getState().clearSession()
+
+    expect(useSessionStore.getState().token).toBeNull()
+  })
 })
