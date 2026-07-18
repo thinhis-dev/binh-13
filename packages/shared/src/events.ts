@@ -5,6 +5,9 @@ export const GAME_TIMER_SECONDS = 600
 export const EVENTS = {
   SESSION_CREATE: 'session:create',
   SESSION_CREATED: 'session:created',
+  SESSION_RESTORE: 'session:restore',
+  SESSION_RESTORED: 'session:restored',
+  SESSION_RESTORE_FAILED: 'session:restore_failed',
   SESSION_DESTROY: 'session:destroy',
   SESSION_DESTROYED: 'session:destroyed',
 

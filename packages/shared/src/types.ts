@@ -23,6 +23,22 @@ export interface Card {
   suit: Suit
 }
 
+export interface SessionCreatedPayload {
+  playerId: number
+  name: string
+  token: string
+}
+
+export interface SessionRestorePayload {
+  token: string
+}
+
+export interface SessionRestoredPayload {
+  playerId: number
+  name: string
+  avatar: string
+}
+
 // Player (safe public view — never includes hand cards of opponents)
 export interface Player {
   id: number

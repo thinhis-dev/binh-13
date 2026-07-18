@@ -1,6 +1,8 @@
 import type { Server, Socket } from 'socket.io'
 import { EVENTS } from '@binh-13/shared'
 import { z } from 'zod'
+import { bindSocketIdentity } from '../auth/identity'
+import { signPlayerToken, verifyPlayerToken } from '../auth/token'
 import { triggerGameStart } from '../game/gameEvents'
 import { endGame } from '../game/gameManager'
 import { handleRematchOnPlayerExit } from '../game/rematchEvents'
@@ -10,6 +12,7 @@ import {
   deleteSession,
   getSession,
   getSessionBySocketId,
+  restoreSession,
   updateSocketId,
 } from '../session/sessionManager'
 import {
@@ -36,6 +39,10 @@ const sessionCreateSchema = z.object({
     .trim()
     .min(1, 'Name is required')
     .max(20, 'Name is too long'),
+})
+
+const sessionRestoreSchema = z.object({
+  token: z.string().min(1),
 })
 
 const playerSchema = z.object({
@@ -78,8 +85,34 @@ export function registerRoomEvents(io: Server): void {
         return
 
       const playerId = createSession(data.name, socket.id)
-      socket.emit(EVENTS.SESSION_CREATED, { playerId, name: data.name })
+      bindSocketIdentity(socket, playerId)
+      const token = signPlayerToken(playerId)
+      socket.emit(EVENTS.SESSION_CREATED, { playerId, name: data.name, token })
       log.info({ playerId, event: EVENTS.SESSION_CREATE }, 'Session created')
+    })
+
+    socket.on(EVENTS.SESSION_RESTORE, (payload) => {
+      log.debug({ event: EVENTS.SESSION_RESTORE }, 'Socket event received')
+      const data = parsePayload(socket, sessionRestoreSchema, payload)
+      if (!data)
+        return
+
+      const playerId = verifyPlayerToken(data.token)
+      const player = playerId === null ? undefined : restoreSession(playerId, socket.id)
+
+      if (!player) {
+        socket.emit(EVENTS.SESSION_RESTORE_FAILED)
+        log.info({ event: EVENTS.SESSION_RESTORE }, 'Session restore failed')
+        return
+      }
+
+      bindSocketIdentity(socket, player.playerId)
+      socket.emit(EVENTS.SESSION_RESTORED, {
+        playerId: player.playerId,
+        name: player.name,
+        avatar: player.avatar,
+      })
+      log.info({ playerId: player.playerId, event: EVENTS.SESSION_RESTORE }, 'Session restored')
     })
 
     socket.on(EVENTS.SESSION_DESTROY, (payload) => {
