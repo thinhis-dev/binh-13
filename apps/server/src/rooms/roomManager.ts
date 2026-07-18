@@ -171,9 +171,9 @@ export function getRoom(code: string): RoomState | undefined {
   const players = db
     .prepare(
       `
-      SELECT rp.player_id, s.name, rp.seat, rp.connected
+      SELECT rp.player_id, p.name, rp.seat, rp.connected
       FROM room_players rp
-      JOIN sessions s ON s.player_id = rp.player_id
+      JOIN players p ON p.id = rp.player_id
       WHERE rp.room_code = ?
       ORDER BY rp.seat ASC
     `,

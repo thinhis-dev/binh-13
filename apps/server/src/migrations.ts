@@ -12,17 +12,24 @@ export const migrations: Migration[] = [
     name: 'baseline-players-sessions-rooms',
     up: (db) => {
       db.exec(`
+        CREATE TABLE IF NOT EXISTS players (
+          id           INTEGER PRIMARY KEY AUTOINCREMENT,
+          name         TEXT    NOT NULL,
+          avatar       TEXT    NOT NULL DEFAULT 'default',
+          created_at   INTEGER NOT NULL,
+          last_seen_at INTEGER NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS sessions (
-          player_id  INTEGER PRIMARY KEY AUTOINCREMENT,
-          name       TEXT    NOT NULL,
-          socket_id  TEXT    NOT NULL DEFAULT '',
-          created_at INTEGER NOT NULL
+          player_id    INTEGER PRIMARY KEY REFERENCES players(id),
+          socket_id    TEXT    NOT NULL DEFAULT '',
+          connected_at INTEGER NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS rooms (
           code          TEXT    PRIMARY KEY,
           status        TEXT    NOT NULL DEFAULT 'waiting',
-          created_by    INTEGER NOT NULL REFERENCES sessions(player_id),
+          created_by    INTEGER NOT NULL REFERENCES players(id),
           created_at    INTEGER NOT NULL,
           current_round INTEGER NOT NULL DEFAULT 1,
           settings_json TEXT    NOT NULL DEFAULT '{}'
@@ -30,7 +37,7 @@ export const migrations: Migration[] = [
 
         CREATE TABLE IF NOT EXISTS room_players (
           room_code TEXT    NOT NULL REFERENCES rooms(code) ON DELETE CASCADE,
-          player_id INTEGER NOT NULL REFERENCES sessions(player_id),
+          player_id INTEGER NOT NULL REFERENCES players(id),
           seat      INTEGER NOT NULL,
           connected INTEGER NOT NULL DEFAULT 1,
           PRIMARY KEY (room_code, player_id)
@@ -38,14 +45,14 @@ export const migrations: Migration[] = [
 
         CREATE TABLE IF NOT EXISTS hands (
           room_code  TEXT    NOT NULL REFERENCES rooms(code) ON DELETE CASCADE,
-          player_id  INTEGER NOT NULL REFERENCES sessions(player_id),
+          player_id  INTEGER NOT NULL REFERENCES players(id),
           cards_json TEXT    NOT NULL,
           PRIMARY KEY (room_code, player_id)
         );
 
         CREATE TABLE IF NOT EXISTS arrangements (
           room_code        TEXT    NOT NULL REFERENCES rooms(code) ON DELETE CASCADE,
-          player_id        INTEGER NOT NULL REFERENCES sessions(player_id),
+          player_id        INTEGER NOT NULL REFERENCES players(id),
           arrangement_json TEXT    NOT NULL,
           submitted_at     INTEGER NOT NULL,
           PRIMARY KEY (room_code, player_id)

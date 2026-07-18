@@ -13,19 +13,97 @@ export interface Session {
   socketId: string
 }
 
-export function createSession(name: string, socketId: string): number {
-  const result = getDb()
-    .prepare(
-      `
-      INSERT INTO sessions (name, socket_id, created_at)
-      VALUES (?, ?, ?)
-    `,
-    )
-    .run(name, socketId, Date.now())
+export interface PlayerRecord {
+  playerId: number
+  name: string
+  avatar: string
+  createdAt: number
+  lastSeenAt: number
+}
 
-  const playerId = Number(result.lastInsertRowid)
+interface PlayerRow {
+  id: number
+  name: string
+  avatar: string
+  created_at: number
+  last_seen_at: number
+}
+
+/** Creates a durable `players` row plus an ephemeral `sessions` row for this connection. */
+export function createSession(name: string, socketId: string): number {
+  const db = getDb()
+  const now = Date.now()
+
+  const create = db.transaction(() => {
+    const result = db
+      .prepare(
+        `INSERT INTO players (name, avatar, created_at, last_seen_at) VALUES (?, 'default', ?, ?)`,
+      )
+      .run(name, now, now)
+    const playerId = Number(result.lastInsertRowid)
+
+    db.prepare(
+      `INSERT INTO sessions (player_id, socket_id, connected_at) VALUES (?, ?, ?)`,
+    ).run(playerId, socketId, now)
+
+    return playerId
+  })
+
+  const playerId = create()
   logger.debug({ playerId, socketId }, 'Session created')
   return playerId
+}
+
+/**
+ * Restores a live session for an existing player (e.g. after SESSION_RESTORE
+ * with a valid token): bumps `last_seen_at` and upserts the `sessions` row
+ * with the current socket. Returns undefined if the player no longer exists.
+ */
+export function restoreSession(playerId: number, socketId: string): PlayerRecord | undefined {
+  const db = getDb()
+  const player = getPlayer(playerId)
+  if (!player)
+    return undefined
+
+  const now = Date.now()
+  const restore = db.transaction(() => {
+    db.prepare('UPDATE players SET last_seen_at = ? WHERE id = ?').run(now, playerId)
+    db.prepare(
+      `INSERT INTO sessions (player_id, socket_id, connected_at) VALUES (?, ?, ?)
+       ON CONFLICT(player_id) DO UPDATE SET socket_id = excluded.socket_id, connected_at = excluded.connected_at`,
+    ).run(playerId, socketId, now)
+  })
+  restore()
+
+  logger.debug({ playerId, socketId }, 'Session restored')
+  return { ...player, lastSeenAt: now }
+}
+
+export function getPlayer(playerId: number): PlayerRecord | undefined {
+  const row = getDb()
+    .prepare('SELECT id, name, avatar, created_at, last_seen_at FROM players WHERE id = ?')
+    .get(playerId) as PlayerRow | undefined
+
+  return row
+    ? {
+        playerId: row.id,
+        name: row.name,
+        avatar: row.avatar,
+        createdAt: row.created_at,
+        lastSeenAt: row.last_seen_at,
+      }
+    : undefined
+}
+
+export function updatePlayer(playerId: number, updates: { name?: string, avatar?: string }): void {
+  const current = getPlayer(playerId)
+  if (!current)
+    return
+
+  getDb()
+    .prepare('UPDATE players SET name = ?, avatar = ? WHERE id = ?')
+    .run(updates.name ?? current.name, updates.avatar ?? current.avatar, playerId)
+  logger.debug({ playerId }, 'Player updated')
 }
 
 export function updateSocketId(playerId: number, socketId: string): void {
@@ -37,7 +115,12 @@ export function updateSocketId(playerId: number, socketId: string): void {
 
 export function getSession(playerId: number): Session | undefined {
   const row = getDb()
-    .prepare('SELECT player_id, name, socket_id FROM sessions WHERE player_id = ?')
+    .prepare(
+      `SELECT p.id AS player_id, p.name, s.socket_id
+       FROM sessions s
+       JOIN players p ON p.id = s.player_id
+       WHERE s.player_id = ?`,
+    )
     .get(playerId) as SessionRow | undefined
 
   const session = row ? mapSession(row) : undefined
@@ -49,7 +132,12 @@ export function getSessionBySocketId(
   socketId: string,
 ): Pick<Session, 'playerId' | 'name'> | undefined {
   const row = getDb()
-    .prepare('SELECT player_id, name, socket_id FROM sessions WHERE socket_id = ?')
+    .prepare(
+      `SELECT p.id AS player_id, p.name, s.socket_id
+       FROM sessions s
+       JOIN players p ON p.id = s.player_id
+       WHERE s.socket_id = ?`,
+    )
     .get(socketId) as SessionRow | undefined
 
   const session = row
