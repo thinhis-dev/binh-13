@@ -60,6 +60,31 @@ export const migrations: Migration[] = [
       `)
     },
   },
+  {
+    version: 2,
+    name: 'match-results',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS match_results (
+          id             INTEGER PRIMARY KEY AUTOINCREMENT,
+          room_code      TEXT    NOT NULL,
+          round          INTEGER NOT NULL,
+          p1_id          INTEGER NOT NULL REFERENCES players(id),
+          p2_id          INTEGER NOT NULL REFERENCES players(id),
+          winner         TEXT    NOT NULL,
+          p1_score       INTEGER NOT NULL,
+          p2_score       INTEGER NOT NULL,
+          p1_fouled      INTEGER NOT NULL DEFAULT 0,
+          p2_fouled      INTEGER NOT NULL DEFAULT 0,
+          surrendered_by INTEGER,
+          finished_at    INTEGER NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_match_results_p1 ON match_results(p1_id);
+        CREATE INDEX IF NOT EXISTS idx_match_results_p2 ON match_results(p2_id);
+      `)
+    },
+  },
 ]
 
 const LEGACY_TABLE_NAMES = ['sessions', 'rooms', 'room_players', 'hands', 'arrangements', 'players']

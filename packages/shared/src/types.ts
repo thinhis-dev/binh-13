@@ -23,6 +23,26 @@ export interface Card {
   suit: Suit
 }
 
+export interface PlayerStats {
+  games: number
+  wins: number
+  losses: number
+  draws: number
+  fouls: number
+  sweeps: number
+}
+
+export interface PlayerProfile {
+  playerId: number
+  name: string
+  avatar: string
+  createdAt: number
+  stats: PlayerStats
+}
+
+export const AVATARS = ['default', 'fox', 'panda', 'owl', 'tiger', 'rabbit'] as const
+export type Avatar = (typeof AVATARS)[number]
+
 export interface SessionCreatedPayload {
   playerId: number
   name: string
