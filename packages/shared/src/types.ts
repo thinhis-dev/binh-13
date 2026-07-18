@@ -58,6 +58,28 @@ export interface ProfileUpdatedPayload {
   avatar: string
 }
 
+export interface AuthRegisterPayload {
+  playerId: number
+  username: string
+  password: string
+}
+
+export interface AuthRegisteredPayload {
+  username: string
+}
+
+export interface AuthLoginPayload {
+  username: string
+  password: string
+}
+
+export interface AuthLoggedInPayload {
+  playerId: number
+  name: string
+  avatar: string
+  token: string
+}
+
 export interface SessionCreatedPayload {
   playerId: number
   name: string

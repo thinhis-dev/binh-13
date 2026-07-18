@@ -2,6 +2,7 @@ import { createAdaptorServer } from '@hono/node-server'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { Server as SocketServer } from 'socket.io'
+import { registerAuthEvents } from './auth/authEvents'
 import { initDb } from './db'
 import { registerGameEvents } from './game/gameEvents'
 import { registerRematchEvents } from './game/rematchEvents'
@@ -55,6 +56,7 @@ export function createRealtimeServer() {
   registerGameEvents(io)
   registerRematchEvents(io)
   registerProfileEvents(io)
+  registerAuthEvents(io)
 
   return { app, httpServer, io }
 }

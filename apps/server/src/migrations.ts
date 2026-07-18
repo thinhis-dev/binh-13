@@ -85,6 +85,22 @@ export const migrations: Migration[] = [
       `)
     },
   },
+  {
+    version: 3,
+    name: 'claimable-accounts',
+    up: (db) => {
+      const columns = db.prepare('PRAGMA table_info(players)').all() as Array<{ name: string }>
+      const hasUsername = columns.some(c => c.name === 'username')
+      const hasPasswordHash = columns.some(c => c.name === 'password_hash')
+
+      if (!hasUsername)
+        db.exec('ALTER TABLE players ADD COLUMN username TEXT')
+      if (!hasPasswordHash)
+        db.exec('ALTER TABLE players ADD COLUMN password_hash TEXT')
+
+      db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_players_username ON players(username) WHERE username IS NOT NULL')
+    },
+  },
 ]
 
 const LEGACY_TABLE_NAMES = ['sessions', 'rooms', 'room_players', 'hands', 'arrangements', 'players']

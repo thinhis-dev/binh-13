@@ -46,6 +46,11 @@ export const EVENTS = {
   PROFILE_UPDATE: 'profile:update',
   PROFILE_UPDATED: 'profile:updated',
 
+  AUTH_REGISTER: 'auth:register',
+  AUTH_REGISTERED: 'auth:registered',
+  AUTH_LOGIN: 'auth:login',
+  AUTH_LOGGED_IN: 'auth:logged_in',
+
   PLAYER_DISCONNECTED: 'player:disconnected',
   PLAYER_RECONNECTED: 'player:reconnected',
 
