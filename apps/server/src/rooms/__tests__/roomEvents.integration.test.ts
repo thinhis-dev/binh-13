@@ -223,10 +223,12 @@ describe('roomEvents integration', () => {
       message: 'Room code must be 6 alphanumeric characters',
     })
 
+    // thirdSocket is authenticated as `third.playerId` — claiming a different
+    // playerId is now rejected as impersonation before it ever reaches the DB.
     const unknownSession = waitForEvent<ErrorPayload>(thirdSocket, EVENTS.ERROR)
     thirdSocket.emit(EVENTS.ROOM_CREATE, { playerId: 999_999 })
     await expect(unknownSession).resolves.toEqual({
-      message: 'Session not found',
+      message: 'Player identity mismatch',
     })
 
     const outsiderLeave = waitForEvent<ErrorPayload>(thirdSocket, EVENTS.ERROR)

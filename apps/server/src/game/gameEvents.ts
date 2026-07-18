@@ -2,6 +2,7 @@ import type { Card, PlayerArrangement } from '@binh-13/shared'
 import type { Server } from 'socket.io'
 import { EVENTS, GAME_TIMER_SECONDS, RANK_VALUE } from '@binh-13/shared'
 import { z } from 'zod'
+import { requireIdentity } from '../auth/identity'
 import { getDb } from '../db'
 import { createChildLogger } from '../lib/logger'
 import { getRoom, getRoomSettings, updateRoomStatus } from '../rooms/roomManager'
@@ -278,6 +279,9 @@ export function registerGameEvents(io: Server): void {
 
       const { playerId, code, arrangement } = parsed.data
 
+      if (!requireIdentity(socket, playerId))
+        return
+
       const session = getSession(playerId)
       if (!session) {
         socket.emit(EVENTS.ERROR, { message: 'Session not found' })
@@ -376,6 +380,9 @@ export function registerGameEvents(io: Server): void {
       }
 
       const { playerId, code } = parsed.data
+
+      if (!requireIdentity(socket, playerId))
+        return
 
       const session = getSession(playerId)
       if (!session) {

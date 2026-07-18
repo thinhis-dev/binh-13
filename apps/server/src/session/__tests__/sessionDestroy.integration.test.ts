@@ -112,16 +112,30 @@ describe('session:destroy integration', () => {
     expect(s1.connected).toBe(false)
   })
 
-  it('is idempotent for non-existent playerId (still emits SESSION_DESTROYED)', async () => {
+  it('is idempotent when the session row is already gone for the authenticated player', async () => {
     const s1 = await connectClient()
-    await createSession(s1, 'Alice')
+    const { playerId } = await createSession(s1, 'Alice')
+
+    // Simulate a stale session (e.g. server restart wiped the DB) while this
+    // socket's in-memory identity binding is still intact.
+    getDb().prepare('DELETE FROM sessions WHERE player_id = ?').run(playerId)
 
     const destroyed = waitForEvent<void>(s1, EVENTS.SESSION_DESTROYED)
     const disconnected = waitForEvent<void>(s1, 'disconnect')
-    s1.emit(EVENTS.SESSION_DESTROY, { playerId: 99999 })
+    s1.emit(EVENTS.SESSION_DESTROY, { playerId })
     await destroyed
     await disconnected
 
     expect(s1.connected).toBe(false)
+  })
+
+  it('rejects SESSION_DESTROY for a playerId other than the one this socket authenticated as', async () => {
+    const s1 = await connectClient()
+    await createSession(s1, 'Alice')
+
+    const errorEvent = waitForEvent<{ message: string }>(s1, EVENTS.ERROR)
+    s1.emit(EVENTS.SESSION_DESTROY, { playerId: 99999 })
+    await expect(errorEvent).resolves.toMatchObject({ message: expect.any(String) })
+    expect(s1.connected).toBe(true)
   })
 })

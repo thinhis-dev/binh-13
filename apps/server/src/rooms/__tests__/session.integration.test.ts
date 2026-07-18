@@ -101,4 +101,28 @@ describe('session integration', () => {
       name: 'Carol',
     })
   })
+
+  it('rejects impersonation: a socket authenticated as one player cannot act as another (AC-A1-5)', async () => {
+    const s1 = await connectClient()
+    const s2 = await connectClient()
+    await createSession(s1, 'Alice')
+    const bob = await createSession(s2, 'Bob')
+
+    const errorEvent = waitForEvent<{ message: string }>(s1, EVENTS.ERROR)
+    s1.emit(EVENTS.ROOM_CREATE, { playerId: bob.playerId })
+
+    await errorEvent
+
+    const room = getDb().prepare('SELECT * FROM rooms WHERE created_by = ?').get(bob.playerId)
+    expect(room).toBeUndefined()
+  })
+
+  it('rejects identity-bearing events from a socket that never created/restored a session (AC-A1-6)', async () => {
+    const socket = await connectClient()
+
+    const errorEvent = waitForEvent<{ message: string }>(socket, EVENTS.ERROR)
+    socket.emit(EVENTS.ROOM_CREATE, { playerId: 1 })
+
+    await errorEvent
+  })
 })

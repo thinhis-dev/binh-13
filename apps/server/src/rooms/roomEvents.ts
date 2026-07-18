@@ -1,7 +1,7 @@
 import type { Server, Socket } from 'socket.io'
 import { EVENTS } from '@binh-13/shared'
 import { z } from 'zod'
-import { bindSocketIdentity } from '../auth/identity'
+import { bindSocketIdentity, requireIdentity } from '../auth/identity'
 import { signPlayerToken, verifyPlayerToken } from '../auth/token'
 import { triggerGameStart } from '../game/gameEvents'
 import { endGame } from '../game/gameManager'
@@ -118,7 +118,7 @@ export function registerRoomEvents(io: Server): void {
     socket.on(EVENTS.SESSION_DESTROY, (payload) => {
       log.debug({ event: EVENTS.SESSION_DESTROY }, 'Socket event received')
       const data = parsePayload(socket, playerSchema, payload)
-      if (!data)
+      if (!data || !requireIdentity(socket, data.playerId))
         return
 
       // Idempotent: if session already gone (e.g. server restart wiped DB),
@@ -146,7 +146,7 @@ export function registerRoomEvents(io: Server): void {
     socket.on(EVENTS.ROOM_CREATE, (payload) => {
       log.debug({ event: EVENTS.ROOM_CREATE }, 'Socket event received')
       const data = parsePayload(socket, playerSchema, payload)
-      if (!data || !assertSession(socket, data.playerId))
+      if (!data || !requireIdentity(socket, data.playerId) || !assertSession(socket, data.playerId))
         return
 
       updateSocketId(data.playerId, socket.id)
@@ -161,7 +161,7 @@ export function registerRoomEvents(io: Server): void {
     socket.on(EVENTS.ROOM_JOIN, (payload) => {
       log.debug({ event: EVENTS.ROOM_JOIN }, 'Socket event received')
       const data = parsePayload(socket, roomActionSchema, payload)
-      if (!data || !assertSession(socket, data.playerId))
+      if (!data || !requireIdentity(socket, data.playerId) || !assertSession(socket, data.playerId))
         return
 
       updateSocketId(data.playerId, socket.id)
@@ -197,7 +197,7 @@ export function registerRoomEvents(io: Server): void {
     socket.on(EVENTS.ROOM_LEAVE, (payload) => {
       log.debug({ event: EVENTS.ROOM_LEAVE }, 'Socket event received')
       const data = parsePayload(socket, roomActionSchema, payload)
-      if (!data || !assertSession(socket, data.playerId))
+      if (!data || !requireIdentity(socket, data.playerId) || !assertSession(socket, data.playerId))
         return
 
       const room = getRoom(data.code)
@@ -230,7 +230,7 @@ export function registerRoomEvents(io: Server): void {
     socket.on(EVENTS.ROOM_MESSAGE, (payload) => {
       log.debug({ event: EVENTS.ROOM_MESSAGE }, 'Socket event received')
       const data = parsePayload(socket, roomMessageSchema, payload)
-      if (!data || !assertSession(socket, data.playerId))
+      if (!data || !requireIdentity(socket, data.playerId) || !assertSession(socket, data.playerId))
         return
 
       const room = getRoom(data.code)
@@ -261,7 +261,7 @@ export function registerRoomEvents(io: Server): void {
     socket.on(EVENTS.ROOM_CLEAR, (payload) => {
       log.debug({ event: EVENTS.ROOM_CLEAR }, 'Socket event received')
       const data = parsePayload(socket, roomActionSchema, payload)
-      if (!data || !assertSession(socket, data.playerId))
+      if (!data || !requireIdentity(socket, data.playerId) || !assertSession(socket, data.playerId))
         return
 
       const room = getRoom(data.code)
@@ -293,7 +293,7 @@ export function registerRoomEvents(io: Server): void {
     socket.on(EVENTS.GAME_START, (payload) => {
       log.debug({ event: EVENTS.GAME_START }, 'Socket event received')
       const data = parsePayload(socket, roomActionSchema, payload)
-      if (!data || !assertSession(socket, data.playerId))
+      if (!data || !requireIdentity(socket, data.playerId) || !assertSession(socket, data.playerId))
         return
 
       const room = getRoom(data.code)
@@ -341,7 +341,7 @@ export function registerRoomEvents(io: Server): void {
     socket.on(EVENTS.ROOM_SETTINGS_UPDATE, (payload) => {
       log.debug({ event: EVENTS.ROOM_SETTINGS_UPDATE }, 'Socket event received')
       const data = parsePayload(socket, roomSettingsSchema, payload)
-      if (!data || !assertSession(socket, data.playerId))
+      if (!data || !requireIdentity(socket, data.playerId) || !assertSession(socket, data.playerId))
         return
 
       const room = getRoom(data.code)

@@ -1,6 +1,7 @@
 import type { Server } from 'socket.io'
 import { EVENTS } from '@binh-13/shared'
 import { z } from 'zod'
+import { requireIdentity } from '../auth/identity'
 import { createChildLogger } from '../lib/logger'
 import { getRoom, getRoomSettings } from '../rooms/roomManager'
 import { getSession } from '../session/sessionManager'
@@ -36,6 +37,9 @@ export function registerRematchEvents(io: Server): void {
       }
 
       const { playerId, code } = parsed.data
+
+      if (!requireIdentity(socket, playerId))
+        return
 
       const session = getSession(playerId)
       if (!session) {
@@ -110,6 +114,9 @@ export function registerRematchEvents(io: Server): void {
       }
 
       const { playerId, code } = parsed.data
+
+      if (!requireIdentity(socket, playerId))
+        return
 
       const session = getSession(playerId)
       if (!session) {
