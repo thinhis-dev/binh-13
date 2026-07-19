@@ -8,3 +8,9 @@ packages:
 allowBuilds:
   better-sqlite3: true
   esbuild: true
+
+overrides:
+  # @types/node@22.19.18 re-resolves undici-types@6.21.0, which pnpm's no-downgrade
+  # trustPolicy flags (that version has no provenance attestation, unlike earlier
+  # 6.x releases). Pin to the newest 6.x release that still carries provenance.
+  undici-types: 6.19.2

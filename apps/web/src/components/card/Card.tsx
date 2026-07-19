@@ -101,6 +101,7 @@ function CardComponent({
       role="img"
       aria-label={label}
       data-testid="playing-card"
+      data-card-id={card.id}
       className={cn(baseClass, 'cursor-default')}
     >
       {svgContent}
@@ -141,6 +142,7 @@ function InteractiveCard({
       type="button"
       aria-label={label}
       data-testid="playing-card"
+      data-card-id={card.id}
       onClick={onClick}
       style={{ transform: CSS.Translate.toString(transform) }}
       className={cn(

@@ -104,7 +104,7 @@ export default function Result() {
     = rematchCancelledReason === 'left' || rematchCancelledReason === 'disconnected'
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-lg flex-col items-center justify-center gap-6 p-4">
+    <div data-testid="round-result" className="mx-auto flex min-h-screen w-full max-w-lg flex-col items-center justify-center gap-6 p-4">
       {/* Winner / Loser banner */}
       <div className="text-center">
         {result.surrendered

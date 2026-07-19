@@ -8,3 +8,7 @@ coverage/
 *.db-wal
 dev.db
 .DS_Store
+
+# Playwright (apps/e2e)
+apps/e2e/playwright-report/
+apps/e2e/test-results/

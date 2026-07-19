@@ -1,0 +1,18 @@
+{
+  "name": "@binh-13/e2e",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "typecheck": "tsc --noEmit",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@binh-13/shared": "workspace:*",
+    "@playwright/test": "^1.61.1",
+    "@types/node": "22.19.18"
+  }
+}

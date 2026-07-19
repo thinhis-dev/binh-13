@@ -110,7 +110,7 @@ export default function Profile() {
         <h1 className="text-3xl font-bold tracking-tight text-center">Profile</h1>
 
         {error && (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <div data-testid="error-banner" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error}
           </div>
         )}

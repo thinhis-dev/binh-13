@@ -235,7 +235,7 @@ export function GameBoard({ initialCards, onSurrender, surrenderDisabled }: Game
 
         <footer className="flex items-center justify-center gap-4 border-t pt-4">
           {submitted && (
-            <span className="text-sm text-muted-foreground">
+            <span data-testid="self-submitted" className="text-sm text-muted-foreground">
               Arrangement submitted — waiting for opponent…
             </span>
           )}

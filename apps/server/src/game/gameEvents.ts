@@ -225,6 +225,16 @@ export function triggerGameStart(
   if (players.length !== 2)
     return
 
+  // Guard against a redundant redeal: ROOM_JOIN's autoStart path can fire more than once for
+  // the same room (e.g. a client re-emitting room:join — React StrictMode's double effect
+  // invocation does this in dev). Without this, a second call here would silently overwrite
+  // the already-dealt GameInstance with a fresh shuffle, orphaning its round timer and handing
+  // a player a hand that no longer matches what their client already rendered/submitted from
+  // (surfacing as a false "Card validation failed — possible cheating"). endGame() clears this
+  // entry when a round resolves, so a genuine rematch's call here is unaffected.
+  if (getGame(roomCode))
+    return
+
   const sorted = [...players].sort((a, b) => a.seat - b.seat)
   const p1Id = sorted[0].playerId
   const p2Id = sorted[1].playerId

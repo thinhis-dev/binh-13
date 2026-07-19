@@ -15,7 +15,6 @@ export default function Lobby() {
   const code = params.code?.toUpperCase() ?? ''
   const { joinRoom, leaveRoom, clearRoom, startGame } = useSocket()
   const playerId = useSessionStore(state => state.playerId)
-  const roomCode = useSessionStore(state => state.roomCode)
   const setRoomCode = useSessionStore(state => state.setRoom)
   const room = useGameStore(state => state.room)
   const settings = useGameStore(state => state.settings)
@@ -26,16 +25,19 @@ export default function Lobby() {
   const resetGame = useGameStore(state => state.reset)
   const [error, setError] = useState('')
 
+  // Deliberately keyed on `code`/`playerId` only — not `roomCode`. `roomCode` is written
+  // by this same effect, and handleLeave() clears it (setRoomCode(null)) before navigating
+  // away; if `roomCode` were a dependency, that clear would re-run this effect while Lobby
+  // is still mounted (URL still /room/:code) and immediately re-join the room we just left.
   useEffect(() => {
     if (!playerId || !code) {
       navigate('/')
       return
     }
 
-    if (roomCode !== code)
-      setRoomCode(code)
+    setRoomCode(code)
     joinRoom(playerId, code)
-  }, [code, joinRoom, navigate, playerId, roomCode, setRoomCode])
+  }, [code, joinRoom, navigate, playerId, setRoomCode])
 
   useEffect(() => {
     const handleRoomState = (payload: { room: Room }) => {
@@ -146,7 +148,7 @@ export default function Lobby() {
           <div>
             <h1 className="text-3xl font-semibold">
               Room
-              {code}
+              <span data-testid="room-code">{code}</span>
             </h1>
             <p className="text-sm text-muted-foreground">
               Share this code with the second player.
@@ -175,7 +177,7 @@ export default function Lobby() {
         </header>
 
         {error && (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <div data-testid="error-banner" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error}
           </div>
         )}

@@ -16,6 +16,8 @@ export default antfu(
       '**/node_modules/',
       '**/plans/',
       '**/scripts/',
+      '**/playwright-report/',
+      '**/test-results/',
     ],
   },
 
@@ -44,6 +46,15 @@ export default antfu(
       'ts/no-explicit-any': 'off',
       'ts/no-unsafe-assignment': 'off',
       'unused-imports/no-unused-vars': 'off',
+    },
+  },
+
+  // apps/e2e is plain Playwright/Node, no React — its fixtures destructure a `use` callback
+  // (Playwright's fixture API) that the React hooks rule otherwise flags as a misnamed hook.
+  {
+    files: ['apps/e2e/**'],
+    rules: {
+      'react/rules-of-hooks': 'off',
     },
   },
 )

@@ -8,6 +8,7 @@ import { useSessionStore } from '@/stores/sessionStore'
 export function useSocket() {
   const [connected, setConnected] = useState(socket.connected)
   const hasAttemptedRestoreRef = useRef(false)
+  const playerId = useSessionStore(s => s.playerId)
   const setSession = useSessionStore(s => s.setSession)
   const clearSession = useSessionStore(s => s.clearSession)
   const setHand = useGameStore(s => s.setHand)
@@ -136,7 +137,11 @@ export function useSocket() {
     const handleResult = (result: RoundResult) => {
       setResult(result)
     }
-    const handleRematchRequested = () => {
+    const handleRematchRequested = (payload: { requestedBy: number }) => {
+      // Broadcast goes to the whole room, including the requester's own socket — ignore the
+      // echo of our own request, or our own Rematch/Waiting-for-opponent control disappears.
+      if (payload.requestedBy === playerId)
+        return
       setRematchOpponentRequested(true)
     }
     const handleRematchAccepted = () => {
@@ -187,7 +192,7 @@ export function useSocket() {
       socket.off(EVENTS.SESSION_RESTORED, handleSessionRestored)
       socket.off(EVENTS.SESSION_RESTORE_FAILED, handleSessionRestoreFailed)
     }
-  }, [setHand, setTimer, setTimerExpired, setOpponentSubmitted, setResult, setRematchOpponentRequested, reset, setRematchRequested, setRematchCancelledReason, setSession, clearSession])
+  }, [setHand, setTimer, setTimerExpired, setOpponentSubmitted, setResult, setRematchOpponentRequested, reset, setRematchRequested, setRematchCancelledReason, setSession, clearSession, playerId])
 
   useEffect(() => {
     if (hasAttemptedRestoreRef.current)
