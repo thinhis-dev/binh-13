@@ -35,6 +35,8 @@ Client-to-server events:
 - `room:create` with `{ playerId }`
 - `room:join` with `{ playerId, code }`
 - `room:leave` with `{ playerId, code }`
+- `room:ready` with `{ playerId, code, ready }`. The game starts only when both
+  connected players are ready. Leaving the room clears that player's ready flag.
 - `room:message` with `{ playerId, code, text }`
 - `room:clear` with `{ playerId, code }`
 

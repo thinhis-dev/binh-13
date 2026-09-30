@@ -1,7 +1,7 @@
 import { test as base, expect } from '@playwright/test'
 import { test } from '../fixtures/players'
 import { uniqueName } from '../helpers/names'
-import { createRoom, disableAutoStart, joinRoom, leaveRoom, startGameForBoth } from '../helpers/room'
+import { createRoom, disableAutoStart, joinRoom, leaveRoom, readyUp, startGameForBoth } from '../helpers/room'
 import { errorBanner, handCards } from '../helpers/selectors'
 import { createGuestSession } from '../helpers/session'
 
@@ -15,18 +15,31 @@ test.describe('rooms', () => {
   })
 
   test('join room shows both players', async ({ p1, p2 }) => {
-    // Auto-start would deal instantly once p2 joins — disable it so the lobby state is observable.
     const code = await createRoom(p1)
-    await disableAutoStart(p1)
     await joinRoom(p2, code)
 
     await expect(p1.getByText('Waiting...')).not.toBeVisible()
     await expect(p2.getByText('Waiting...')).not.toBeVisible()
   })
 
+  test('joining does not start the game until both players are ready', async ({ p1, p2 }) => {
+    const code = await createRoom(p1)
+    await readyUp(p1)
+    await joinRoom(p2, code)
+
+    await expect(p1.getByTestId('seat-1-status')).toHaveText('Ready')
+    await expect(p1.getByTestId('seat-2-status')).toHaveText('Not ready')
+    await expect(p1).toHaveURL(new RegExp(`/room/${code}$`))
+    await expect(p2).toHaveURL(new RegExp(`/room/${code}$`))
+
+    await readyUp(p2)
+
+    await expect(p1).toHaveURL(new RegExp(`/room/${code}/game$`))
+    await expect(p2).toHaveURL(new RegExp(`/room/${code}/game$`))
+  })
+
   test('leave room', async ({ p1, p2 }) => {
     const code = await createRoom(p1)
-    await disableAutoStart(p1)
     await joinRoom(p2, code)
 
     await leaveRoom(p2)
@@ -48,6 +61,10 @@ test.describe('rooms', () => {
     const code = await createRoom(p1)
     await disableAutoStart(p1)
     await joinRoom(p2, code)
+
+    await expect(p1.getByRole('button', { name: 'Start Game' })).not.toBeVisible()
+    await readyUp(p1)
+    await readyUp(p2)
 
     await expect(p2.getByText('Waiting for the room owner to start the game')).toBeVisible()
     await expect(p1.getByRole('button', { name: 'Start Game' })).toBeVisible()

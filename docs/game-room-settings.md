@@ -76,7 +76,7 @@ Room settings let the **room owner** (the player who created the room) configure
 | Setting | What it does | Type | Default |
 |---------|-------------|------|---------|
 | **Timer** | How long players have to arrange their cards | Select (30s / 60s / 90s / 120s / 300s / Unlimited) | 60 seconds |
-| **Auto-start** | Automatically deal cards when 2nd player joins | On/Off switch | On |
+| **Auto-start** | Automatically deal cards when both players are ready | On/Off switch | On |
 | **Allow foul** | Whether the server accepts a foul arrangement | On/Off switch | On |
 | **Show hand strength** | Show live hand evaluation while arranging | On/Off switch | On |
 | **Reveal on submit** | Show your arrangement to opponent before both submit | On/Off switch | Off |
@@ -87,8 +87,12 @@ Room settings let the **room owner** (the player who created the room) configure
 After cards are dealt, players have this many seconds to arrange their hand. When it hits 0, the server auto-submits whatever arrangement the player currently has. A value of `0` means unlimited time.
 
 **Auto-start (`autoStart`):**  
-- **On (default):** The moment the 2nd player joins, the server deals cards immediately.
-- **Off:** Both players sit in the lobby. The owner must click a "Start Game" button to begin.
+- **On (default):** When both players click **Ready**, the server deals cards immediately.
+- **Off:** Both players click **Ready**. Then the owner must click a "Start Game" button to begin.
+
+Joining the room never starts the game. Each player sends `room:ready` with `{ playerId, code, ready }`,
+and the server starts only when both connected players are ready (`areAllPlayersReady` in
+`apps/server/src/rooms/roomManager.ts`). Leaving the room clears that player's ready flag.
 
 **Allow foul (`allowFoul`):**  
 - **On (default):** Players can submit any arrangement, even a foul (where Group 1 is weaker than Group 2). A foul means the player loses all 3 groups.
@@ -454,13 +458,15 @@ The game manager reads room settings at key moments:
 ### When dealing cards (`triggerGameStart`):
 
 ```ts
-// In roomEvents.ts, when 2nd player joins:
+// In roomEvents.ts, inside the room:ready handler, after saving the flag:
 const room = getRoom(data.code)
-const settings = getRoomSettings(data.code)
+if (!room || !areAllPlayersReady(room))
+  return
 
 // Only auto-start if setting allows it
+const settings = getRoomSettings(data.code)
 if (settings.autoStart) {
-  triggerGameStart(io, data.code, room.players)
+  triggerGameStart(io, data.code, room.players, settings.timerSeconds)
 }
 // Otherwise, wait for owner to emit GAME_START
 ```
@@ -493,7 +499,7 @@ if (!settings.allowFoul) {
 
 ```ts
 socket.on(EVENTS.GAME_START, (payload) => {
-  // Validate: owner only, room has 2 players, status is 'waiting'
+  // Validate: owner only, room has 2 players, both ready, status is 'waiting'
   const room = getRoom(data.code)
   if (room.createdBy !== data.playerId) {
     emitError(socket, 'Only the room creator can start the game')
@@ -501,6 +507,10 @@ socket.on(EVENTS.GAME_START, (payload) => {
   }
   if (room.players.length < 2) {
     emitError(socket, 'Need 2 players to start')
+    return
+  }
+  if (!areAllPlayersReady(room)) {
+    emitError(socket, 'Both players must be ready to start')
     return
   }
   triggerGameStart(io, data.code, room.players)
@@ -542,7 +552,7 @@ These tests spin up a real Socket.io server on port `0` with an in-memory SQLite
 | **Non-owner is rejected** | Create room → join as 2nd player → 2nd player emits `room:settings_update` → verify `error` event received |
 | **Settings locked during game** | Create room → start game → owner emits `room:settings_update` → verify `error` event received |
 | **Joining player sees settings** | Create room → owner changes timer to 120s → 2nd player joins → verify `room:state` has `timerSeconds: 120` |
-| **Auto-start disabled** | Owner sets `autoStart: false` → 2nd player joins → verify `game:dealt` NOT emitted → owner emits `game:start` → verify `game:dealt` IS emitted |
+| **Auto-start disabled** | Owner sets `autoStart: false` → 2nd player joins → both send `room:ready` → verify `game:dealt` NOT emitted → owner emits `game:start` → verify `game:dealt` IS emitted |
 | **Allow foul disabled** | Owner sets `allowFoul: false` → game starts → player submits foul → verify error response |
 | **Timer propagates** | Owner sets `timerSeconds: 120` → game starts → verify `game:dealt` payload has `timerSeconds: 120` |
 

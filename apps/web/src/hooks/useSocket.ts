@@ -70,6 +70,11 @@ export function useSocket() {
     [],
   )
 
+  const setReady = useCallback((playerId: number, code: string, ready: boolean) => {
+    ensureSocketConnected()
+    socket.emit(EVENTS.ROOM_READY, { playerId, code, ready })
+  }, [])
+
   const startGame = useCallback((playerId: number, code: string) => {
     ensureSocketConnected()
     socket.emit(EVENTS.GAME_START, { playerId, code })
@@ -216,6 +221,7 @@ export function useSocket() {
     clearRoom,
     sendMessage,
     submitArrangement,
+    setReady,
     startGame,
     surrender,
     requestRematch,

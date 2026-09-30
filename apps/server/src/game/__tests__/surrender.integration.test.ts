@@ -61,6 +61,8 @@ describe('surrender integration', () => {
     const p1Dealt = waitForEvent<GameDealtPayload>(s1, EVENTS.GAME_DEALT)
     const p2Dealt = waitForEvent<GameDealtPayload>(s2, EVENTS.GAME_DEALT)
     s2.emit(EVENTS.ROOM_JOIN, { playerId: p2.playerId, code })
+    s1.emit(EVENTS.ROOM_READY, { playerId: p1.playerId, code, ready: true })
+    s2.emit(EVENTS.ROOM_READY, { playerId: p2.playerId, code, ready: true })
     const [d1, d2] = await Promise.all([p1Dealt, p2Dealt])
 
     return { s1, s2, p1, p2, code, d1, d2 }
@@ -113,6 +115,8 @@ describe('surrender integration', () => {
     const p1Dealt2 = waitForEvent<GameDealtPayload>(s1, EVENTS.GAME_DEALT)
     const p2Dealt2 = waitForEvent<GameDealtPayload>(s2, EVENTS.GAME_DEALT)
     s2.emit(EVENTS.ROOM_JOIN, { playerId: p2.playerId, code: code2 })
+    s1.emit(EVENTS.ROOM_READY, { playerId: p1.playerId, code: code2, ready: true })
+    s2.emit(EVENTS.ROOM_READY, { playerId: p2.playerId, code: code2, ready: true })
     const [d1, d2] = await Promise.all([p1Dealt2, p2Dealt2])
 
     // New game started normally

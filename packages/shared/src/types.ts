@@ -103,6 +103,7 @@ export interface Player {
   name: string
   seat: 1 | 2
   connected: boolean
+  ready: boolean
 }
 
 // How many rounds to play

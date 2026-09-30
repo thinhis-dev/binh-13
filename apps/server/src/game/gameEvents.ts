@@ -213,7 +213,7 @@ export function handleTimerExpiry(io: Server, roomCode: string): void {
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
- * Called from roomEvents when the 2nd player joins.
+ * Called from roomEvents once both players are ready (autoStart) or the owner starts manually.
  * Deals cards, starts the timer, and emits game:dealt to each player separately.
  */
 export function triggerGameStart(
@@ -225,13 +225,13 @@ export function triggerGameStart(
   if (players.length !== 2)
     return
 
-  // Guard against a redundant redeal: ROOM_JOIN's autoStart path can fire more than once for
-  // the same room (e.g. a client re-emitting room:join — React StrictMode's double effect
-  // invocation does this in dev). Without this, a second call here would silently overwrite
-  // the already-dealt GameInstance with a fresh shuffle, orphaning its round timer and handing
-  // a player a hand that no longer matches what their client already rendered/submitted from
-  // (surfacing as a false "Card validation failed — possible cheating"). endGame() clears this
-  // entry when a round resolves, so a genuine rematch's call here is unaffected.
+  // Guard against a redundant redeal: the start path can fire more than once for the same
+  // room (e.g. a client re-emitting room:ready or game:start). Without this, a second call
+  // here would silently overwrite the already-dealt GameInstance with a fresh shuffle,
+  // orphaning its round timer and handing a player a hand that no longer matches what their
+  // client already rendered/submitted from (surfacing as a false "Card validation failed —
+  // possible cheating"). endGame() clears this entry when a round resolves, so a genuine
+  // rematch's call here is unaffected.
   if (getGame(roomCode))
     return
 

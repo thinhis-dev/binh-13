@@ -24,7 +24,7 @@ const baseRoom: Room = {
   code: 'ABCDEF',
   status: 'waiting',
   createdBy: 1,
-  players: [{ id: 1, name: 'Alice', seat: 1, connected: true }],
+  players: [{ id: 1, name: 'Alice', seat: 1, connected: true, ready: false }],
   settings: DEFAULT_ROOM_SETTINGS,
 }
 
@@ -124,8 +124,8 @@ const twoPlayerRoom: Room = {
   status: 'waiting',
   createdBy: 1,
   players: [
-    { id: 1, name: 'Alice', seat: 1, connected: true },
-    { id: 2, name: 'Bob', seat: 2, connected: true },
+    { id: 1, name: 'Alice', seat: 1, connected: true, ready: true },
+    { id: 2, name: 'Bob', seat: 2, connected: true, ready: true },
   ],
   settings: DEFAULT_ROOM_SETTINGS,
 }
@@ -194,5 +194,76 @@ describe('lobby page - autoStart behavior', () => {
     })
     renderLobby()
     expect(screen.queryByRole('button', { name: /start game/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('lobby page - ready check', () => {
+  const notReadyRoom: Room = {
+    ...twoPlayerRoom,
+    players: [
+      { id: 1, name: 'Alice', seat: 1, connected: true, ready: true },
+      { id: 2, name: 'Bob', seat: 2, connected: true, ready: false },
+    ],
+  }
+
+  beforeEach(() => {
+    useSessionStore.getState().setSession(1, 'Alice')
+    useSessionStore.getState().setRoom('ABCDEF')
+    useGameStore.getState().reset()
+    vi.mocked(socket.on).mockReset()
+    vi.mocked(socket.off).mockReset()
+    vi.mocked(socket.emit).mockReset()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    useSessionStore.getState().clearSession()
+    useGameStore.getState().reset()
+  })
+
+  it('shows each seat ready status', () => {
+    useGameStore.getState().setRoom(notReadyRoom)
+    renderLobby()
+    expect(screen.getByTestId('seat-1-status')).toHaveTextContent('Ready')
+    expect(screen.getByTestId('seat-2-status')).toHaveTextContent('Not ready')
+  })
+
+  it('does not announce a start while the second player is not ready', () => {
+    useGameStore.getState().setRoom(notReadyRoom)
+    renderLobby()
+    expect(screen.queryByText(/will start automatically/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/can start when both players are ready/i)).toBeInTheDocument()
+  })
+
+  it('hides the owner Start Game button until both players are ready', () => {
+    useGameStore.getState().setRoom({
+      ...notReadyRoom,
+      settings: { ...DEFAULT_ROOM_SETTINGS, autoStart: false },
+    })
+    renderLobby()
+    expect(screen.queryByRole('button', { name: /start game/i })).not.toBeInTheDocument()
+  })
+
+  it('emits ROOM_READY with ready:true when a not-ready player clicks Ready', () => {
+    useSessionStore.getState().setSession(2, 'Bob')
+    useGameStore.getState().setRoom(notReadyRoom)
+    renderLobby()
+    fireEvent.click(screen.getByRole('button', { name: 'Ready' }))
+    expect(socket.emit).toHaveBeenCalledWith(EVENTS.ROOM_READY, {
+      playerId: 2,
+      code: 'ABCDEF',
+      ready: true,
+    })
+  })
+
+  it('emits ROOM_READY with ready:false when a ready player clicks Cancel Ready', () => {
+    useGameStore.getState().setRoom(notReadyRoom)
+    renderLobby()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel Ready' }))
+    expect(socket.emit).toHaveBeenCalledWith(EVENTS.ROOM_READY, {
+      playerId: 1,
+      code: 'ABCDEF',
+      ready: false,
+    })
   })
 })

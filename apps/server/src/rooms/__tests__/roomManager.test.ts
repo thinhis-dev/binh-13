@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { resetTestDb } from '../../__tests__/helpers/testDb'
 import { createSession } from '../../session/sessionManager'
 import {
+  areAllPlayersReady,
   clearRoom,
   createRoom,
   getRoom,
@@ -10,6 +11,7 @@ import {
   getRoomSettings,
   joinRoom,
   leaveRoom,
+  setPlayerReady,
   toPublicRoom,
   updateRoomSettings,
 } from '../roomManager'
@@ -36,6 +38,7 @@ describe('roomManager', () => {
           name: 'Creator',
           seat: 1,
           connected: true,
+          ready: false,
         },
       ],
     })
@@ -50,6 +53,7 @@ describe('roomManager', () => {
           name: 'Creator',
           seat: 1,
           connected: true,
+          ready: false,
         },
       ],
     })
@@ -73,12 +77,14 @@ describe('roomManager', () => {
         name: 'Creator',
         seat: 1,
         connected: true,
+        ready: false,
       },
       {
         playerId: secondId,
         name: 'Second',
         seat: 2,
         connected: true,
+        ready: false,
       },
     ])
   })
@@ -98,6 +104,39 @@ describe('roomManager', () => {
 
     leaveRoom(code, creatorId)
     expect(getRoom(code)).toBeUndefined()
+  })
+
+  it('reports all players ready only when both connected players are ready', () => {
+    const creatorId = createSession('Creator', 'socket-creator')
+    const secondId = createSession('Second', 'socket-second')
+    const code = createRoom(creatorId)
+
+    setPlayerReady(code, creatorId, true)
+    expect(areAllPlayersReady(getRoom(code)!)).toBe(false)
+
+    joinRoom(code, secondId)
+    expect(areAllPlayersReady(getRoom(code)!)).toBe(false)
+
+    setPlayerReady(code, secondId, true)
+    expect(areAllPlayersReady(getRoom(code)!)).toBe(true)
+
+    setPlayerReady(code, secondId, false)
+    expect(areAllPlayersReady(getRoom(code)!)).toBe(false)
+  })
+
+  it('clears the ready flag when a player leaves', () => {
+    const creatorId = createSession('Creator', 'socket-creator')
+    const secondId = createSession('Second', 'socket-second')
+    const code = createRoom(creatorId)
+    joinRoom(code, secondId)
+    setPlayerReady(code, creatorId, true)
+    setPlayerReady(code, secondId, true)
+
+    leaveRoom(code, secondId)
+    joinRoom(code, secondId)
+
+    expect(getRoom(code)?.players[1]).toMatchObject({ playerId: secondId, ready: false })
+    expect(areAllPlayersReady(getRoom(code)!)).toBe(false)
   })
 
   it('clears rooms explicitly and returns undefined when no room matches a player', () => {

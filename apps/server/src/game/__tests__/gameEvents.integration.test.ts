@@ -109,12 +109,16 @@ describe('gameEvents integration', () => {
   }
 
   it('two players join → both receive game:dealt with 13 cards each', async () => {
-    const { s1, s2, p2, code } = await setupTwoPlayerRoom()
+    const { s1, s2, p1, p2, code } = await setupTwoPlayerRoom()
 
     const p1Dealt = waitForEvent<GameDealtPayload>(s1, EVENTS.GAME_DEALT)
     const p2Dealt = waitForEvent<GameDealtPayload>(s2, EVENTS.GAME_DEALT)
 
     s2.emit(EVENTS.ROOM_JOIN, { playerId: p2.playerId, code })
+
+    s1.emit(EVENTS.ROOM_READY, { playerId: p1.playerId, code, ready: true })
+
+    s2.emit(EVENTS.ROOM_READY, { playerId: p2.playerId, code, ready: true })
 
     const [d1, d2] = await Promise.all([p1Dealt, p2Dealt])
     expect(d1.hand).toHaveLength(13)
@@ -125,12 +129,16 @@ describe('gameEvents integration', () => {
   })
 
   it('dealt cards are unique per player (no overlap)', async () => {
-    const { s1, s2, p2, code } = await setupTwoPlayerRoom()
+    const { s1, s2, p1, p2, code } = await setupTwoPlayerRoom()
 
     const p1Dealt = waitForEvent<GameDealtPayload>(s1, EVENTS.GAME_DEALT)
     const p2Dealt = waitForEvent<GameDealtPayload>(s2, EVENTS.GAME_DEALT)
 
     s2.emit(EVENTS.ROOM_JOIN, { playerId: p2.playerId, code })
+
+    s1.emit(EVENTS.ROOM_READY, { playerId: p1.playerId, code, ready: true })
+
+    s2.emit(EVENTS.ROOM_READY, { playerId: p2.playerId, code, ready: true })
     const [d1, d2] = await Promise.all([p1Dealt, p2Dealt])
 
     const ids1 = new Set(d1.hand.map(c => c.id))
@@ -146,6 +154,10 @@ describe('gameEvents integration', () => {
     const p2Dealt = waitForEvent<GameDealtPayload>(s2, EVENTS.GAME_DEALT)
 
     s2.emit(EVENTS.ROOM_JOIN, { playerId: p2.playerId, code })
+
+    s1.emit(EVENTS.ROOM_READY, { playerId: p1.playerId, code, ready: true })
+
+    s2.emit(EVENTS.ROOM_READY, { playerId: p2.playerId, code, ready: true })
     const [d1] = await Promise.all([p1Dealt, p2Dealt])
 
     const opponentNotified = waitForEvent(s2, EVENTS.GAME_OPPONENT_SUBMITTED)
@@ -165,6 +177,10 @@ describe('gameEvents integration', () => {
     const p2Dealt = waitForEvent<GameDealtPayload>(s2, EVENTS.GAME_DEALT)
 
     s2.emit(EVENTS.ROOM_JOIN, { playerId: p2.playerId, code })
+
+    s1.emit(EVENTS.ROOM_READY, { playerId: p1.playerId, code, ready: true })
+
+    s2.emit(EVENTS.ROOM_READY, { playerId: p2.playerId, code, ready: true })
     const [d1, d2] = await Promise.all([p1Dealt, p2Dealt])
 
     const p1Result = waitForEvent<RoundResult>(s1, EVENTS.GAME_RESULT)
@@ -194,6 +210,8 @@ describe('gameEvents integration', () => {
     const p1Dealt = waitForEvent<GameDealtPayload>(s1, EVENTS.GAME_DEALT)
     const p2Dealt = waitForEvent<GameDealtPayload>(s2, EVENTS.GAME_DEALT)
     s2.emit(EVENTS.ROOM_JOIN, { playerId: p2.playerId, code })
+    s1.emit(EVENTS.ROOM_READY, { playerId: p1.playerId, code, ready: true })
+    s2.emit(EVENTS.ROOM_READY, { playerId: p2.playerId, code, ready: true })
     await Promise.all([p1Dealt, p2Dealt])
 
     const err = waitForEvent<ErrorPayload>(s1, EVENTS.ERROR)
@@ -235,6 +253,8 @@ describe('gameEvents integration', () => {
     const p1Dealt = waitForEvent<GameDealtPayload>(s1, EVENTS.GAME_DEALT)
     const p2Dealt = waitForEvent<GameDealtPayload>(s2, EVENTS.GAME_DEALT)
     s2.emit(EVENTS.ROOM_JOIN, { playerId: p2.playerId, code })
+    s1.emit(EVENTS.ROOM_READY, { playerId: p1.playerId, code, ready: true })
+    s2.emit(EVENTS.ROOM_READY, { playerId: p2.playerId, code, ready: true })
     const [d1] = await Promise.all([p1Dealt, p2Dealt])
 
     const err = waitForEvent<ErrorPayload>(s1, EVENTS.ERROR)
@@ -261,6 +281,8 @@ describe('gameEvents integration', () => {
     const p1Dealt = waitForEvent<GameDealtPayload>(s1, EVENTS.GAME_DEALT)
     const p2Dealt = waitForEvent<GameDealtPayload>(s2, EVENTS.GAME_DEALT)
     s2.emit(EVENTS.ROOM_JOIN, { playerId: p2.playerId, code })
+    s1.emit(EVENTS.ROOM_READY, { playerId: p1.playerId, code, ready: true })
+    s2.emit(EVENTS.ROOM_READY, { playerId: p2.playerId, code, ready: true })
     const [d1, d2] = await Promise.all([p1Dealt, p2Dealt])
 
     // Use createForfeitArrangement which is guaranteed to produce a foul
@@ -321,6 +343,8 @@ describe('gameEvents integration', () => {
     const p1Dealt = waitForEvent<GameDealtPayload>(s1, EVENTS.GAME_DEALT)
     const p2Dealt = waitForEvent<GameDealtPayload>(s2, EVENTS.GAME_DEALT)
     s2.emit(EVENTS.ROOM_JOIN, { playerId: p2.playerId, code })
+    s1.emit(EVENTS.ROOM_READY, { playerId: p1.playerId, code, ready: true })
+    s2.emit(EVENTS.ROOM_READY, { playerId: p2.playerId, code, ready: true })
     const [d1] = await Promise.all([p1Dealt, p2Dealt])
 
     const arr = validArrangement(p1.playerId, d1.hand)
@@ -349,6 +373,8 @@ describe('gameEvents integration', () => {
     const p1Dealt = waitForEvent<GameDealtPayload>(s1, EVENTS.GAME_DEALT)
     const p2Dealt = waitForEvent<GameDealtPayload>(s2, EVENTS.GAME_DEALT)
     s2.emit(EVENTS.ROOM_JOIN, { playerId: p2.playerId, code })
+    s1.emit(EVENTS.ROOM_READY, { playerId: p1.playerId, code, ready: true })
+    s2.emit(EVENTS.ROOM_READY, { playerId: p2.playerId, code, ready: true })
     const [d1, d2] = await Promise.all([p1Dealt, p2Dealt])
 
     // Both players received hands
@@ -393,6 +419,8 @@ describe('gameEvents integration', () => {
     const p1Dealt = waitForEvent<GameDealtPayload>(s1, EVENTS.GAME_DEALT)
     const p2Dealt = waitForEvent<GameDealtPayload>(s2, EVENTS.GAME_DEALT)
     s2.emit(EVENTS.ROOM_JOIN, { playerId: p2.playerId, code })
+    s1.emit(EVENTS.ROOM_READY, { playerId: p1.playerId, code, ready: true })
+    s2.emit(EVENTS.ROOM_READY, { playerId: p2.playerId, code, ready: true })
     await Promise.all([p1Dealt, p2Dealt])
 
     // Both players disconnect (simulating navigating away)

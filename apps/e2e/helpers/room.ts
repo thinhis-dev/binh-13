@@ -11,16 +11,18 @@ export async function createRoom(page: Page): Promise<string> {
   return code
 }
 
-/**
- * With the default autoStart:true settings, dealing fires the instant the 2nd player joins,
- * so the URL may already have moved on to `/room/{code}/game` by the time we can observe it —
- * only assert we landed *in the room*, not that we're still specifically on the lobby.
- */
+/** Dealing waits for both players to mark themselves ready, so a join always lands on the lobby. */
 export async function joinRoom(page: Page, code: string) {
   await page.getByRole('button', { name: 'Join Room' }).click()
   await page.locator('#room-code').fill(code)
   await page.getByRole('button', { name: 'Join', exact: true }).click()
-  await expect(page).toHaveURL(new RegExp(`/room/${code}(/game)?$`))
+  await expect(page).toHaveURL(new RegExp(`/room/${code}$`))
+}
+
+/** Marks this player ready in the lobby and waits until the server confirms it. */
+export async function readyUp(page: Page) {
+  await page.getByRole('button', { name: 'Ready', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Cancel Ready' })).toBeVisible()
 }
 
 export async function leaveRoom(page: Page) {
@@ -28,7 +30,7 @@ export async function leaveRoom(page: Page) {
   await expect(page).toHaveURL('/')
 }
 
-/** Owner-only: opens Room Settings and flips Auto-start off, so joining the 2nd player does not race into dealing. */
+/** Owner-only: opens Room Settings and flips Auto-start off, so both players being ready does not race into dealing. */
 export async function disableAutoStart(ownerPage: Page) {
   await ownerPage.getByRole('button', { name: 'Settings' }).click()
   await ownerPage.getByRole('switch', { name: 'Auto-start' }).click()
@@ -42,9 +44,11 @@ export async function setupRoom(p1: Page, p2: Page): Promise<string> {
   return code
 }
 
-/** Full room setup + wait for both to auto-navigate to the game page (default autoStart: true). */
+/** Full room setup, both players ready, then wait for both to auto-navigate to the game page (default autoStart: true). */
 export async function startGameForBoth(p1: Page, p2: Page): Promise<string> {
   const code = await setupRoom(p1, p2)
+  await readyUp(p1)
+  await readyUp(p2)
   await expect(p1).toHaveURL(new RegExp(`/room/${code}/game$`))
   await expect(p2).toHaveURL(new RegExp(`/room/${code}/game$`))
   return code

@@ -13,7 +13,7 @@ export default function Lobby() {
   const navigate = useNavigate()
   const params = useParams()
   const code = params.code?.toUpperCase() ?? ''
-  const { joinRoom, leaveRoom, clearRoom, startGame } = useSocket()
+  const { joinRoom, leaveRoom, clearRoom, setReady, startGame } = useSocket()
   const playerId = useSessionStore(state => state.playerId)
   const setRoomCode = useSessionStore(state => state.setRoom)
   const room = useGameStore(state => state.room)
@@ -133,7 +133,16 @@ export default function Lobby() {
   }
 
   const isCreator = room?.createdBy === playerId
-  const bothPlayersReady = (room?.players.length ?? 0) >= 2
+  const bothPlayersJoined = (room?.players.length ?? 0) >= 2
+  const me = room?.players.find(player => player.id === playerId)
+  const bothPlayersReady = bothPlayersJoined
+    && (room?.players.every(player => player.connected && player.ready) ?? false)
+
+  function handleToggleReady() {
+    if (!playerId || !code || !me)
+      return
+    setReady(playerId, code, !me.ready)
+  }
 
   function handleStartGame() {
     if (!playerId || !code)
@@ -197,13 +206,16 @@ export default function Lobby() {
                       <div className="mt-2 flex items-center justify-between gap-3">
                         <span className="font-medium">{player.name}</span>
                         <span
+                          data-testid={`seat-${seat}-status`}
                           className={
-                            player.connected
+                            player.connected && player.ready
                               ? 'text-sm text-green-600'
                               : 'text-sm text-muted-foreground'
                           }
                         >
-                          {player.connected ? 'Connected' : 'Disconnected'}
+                          {!player.connected
+                            ? 'Disconnected'
+                            : player.ready ? 'Ready' : 'Not ready'}
                         </span>
                       </div>
                     )
@@ -214,6 +226,26 @@ export default function Lobby() {
             )
           })}
         </section>
+
+        {me && (
+          <div className="rounded-md border bg-card p-4">
+            {!bothPlayersReady && (
+              <p className="text-sm text-muted-foreground">
+                {bothPlayersJoined
+                  ? 'The game can start when both players are ready.'
+                  : 'Waiting for the second player to join.'}
+              </p>
+            )}
+            <Button
+              type="button"
+              className="mt-3 w-full"
+              variant={me.ready ? 'outline' : 'default'}
+              onClick={handleToggleReady}
+            >
+              {me.ready ? 'Cancel Ready' : 'Ready'}
+            </Button>
+          </div>
+        )}
 
         {bothPlayersReady && (
           <div className="rounded-md border bg-card p-4">
@@ -244,7 +276,7 @@ export default function Lobby() {
                 )
               : (
                   <p className="text-sm text-muted-foreground">
-                    Both players are in the room. The game will start automatically.
+                    Both players are ready. The game will start automatically.
                   </p>
                 )}
           </div>

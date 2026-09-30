@@ -16,6 +16,7 @@ import {
   updateSocketId,
 } from '../session/sessionManager'
 import {
+  areAllPlayersReady,
   clearRoom,
   createRoom,
   getRoom,
@@ -23,6 +24,7 @@ import {
   getRoomSettings,
   joinRoom,
   leaveRoom,
+  setPlayerReady,
   toPublicRoom,
   updateRoomSettings,
 } from './roomManager'
@@ -51,6 +53,10 @@ const playerSchema = z.object({
 
 const roomActionSchema = playerSchema.extend({
   code: roomCodeSchema,
+})
+
+const roomReadySchema = roomActionSchema.extend({
+  ready: z.boolean(),
 })
 
 const roomMessageSchema = roomActionSchema.extend({
@@ -179,18 +185,51 @@ export function registerRoomEvents(io: Server): void {
       socket.emit(EVENTS.ROOM_JOINED, { code: data.code })
       emitRoomState(io, data.code)
       log.info({ playerId: data.playerId, roomCode: data.code }, 'Room joined')
+    })
 
-      // Trigger game start when 2nd player joins (if autoStart enabled)
+    socket.on(EVENTS.ROOM_READY, (payload) => {
+      log.debug({ event: EVENTS.ROOM_READY }, 'Socket event received')
+      const data = parsePayload(socket, roomReadySchema, payload)
+      if (!data || !requireIdentity(socket, data.playerId) || !assertSession(socket, data.playerId))
+        return
+
+      const room = getRoom(data.code)
+      if (!room || !isPlayerInRoom(room, data.playerId)) {
+        log.warn(
+          { playerId: data.playerId, roomCode: data.code },
+          'Ready rejected: player not in room',
+        )
+        emitError(socket, 'Player is not in this room')
+        return
+      }
+
+      if (room.status !== 'waiting') {
+        log.warn(
+          { playerId: data.playerId, roomCode: data.code },
+          'Ready rejected: game in progress',
+        )
+        emitError(socket, 'Game already in progress')
+        return
+      }
+
+      setPlayerReady(data.code, data.playerId, data.ready)
+      emitRoomState(io, data.code)
+      log.info(
+        { playerId: data.playerId, roomCode: data.code, ready: data.ready },
+        'Player ready updated',
+      )
+
       const updatedRoom = getRoom(data.code)
-      if (updatedRoom && updatedRoom.players.length === 2) {
-        const settings = getRoomSettings(data.code)
-        if (settings.autoStart) {
-          triggerGameStart(io, data.code, updatedRoom.players, settings.timerSeconds)
-          log.info({ roomCode: data.code }, 'Game start triggered (autoStart)')
-        }
-        else {
-          log.info({ roomCode: data.code }, 'autoStart disabled — waiting for GAME_START')
-        }
+      if (!updatedRoom || !areAllPlayersReady(updatedRoom))
+        return
+
+      const settings = getRoomSettings(data.code)
+      if (settings.autoStart) {
+        triggerGameStart(io, data.code, updatedRoom.players, settings.timerSeconds)
+        log.info({ roomCode: data.code }, 'Game start triggered (autoStart, both ready)')
+      }
+      else {
+        log.info({ roomCode: data.code }, 'Both players ready — waiting for GAME_START')
       }
     })
 
@@ -321,6 +360,15 @@ export function registerRoomEvents(io: Server): void {
           'Game start rejected: not enough players',
         )
         emitError(socket, 'Need 2 players to start')
+        return
+      }
+
+      if (!areAllPlayersReady(room)) {
+        log.warn(
+          { playerId: data.playerId, roomCode: data.code },
+          'Game start rejected: players not ready',
+        )
+        emitError(socket, 'Both players must be ready to start')
         return
       }
 

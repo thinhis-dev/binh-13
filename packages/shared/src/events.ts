@@ -22,6 +22,7 @@ export const EVENTS = {
   ROOM_CLEARED: 'room:cleared',
   ROOM_REJOIN: 'room:rejoin',
   ROOM_STATE: 'room:state',
+  ROOM_READY: 'room:ready',
 
   GAME_DEALT: 'game:dealt',
   GAME_TIMER: 'game:timer',

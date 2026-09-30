@@ -101,6 +101,15 @@ export const migrations: Migration[] = [
       db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_players_username ON players(username) WHERE username IS NOT NULL')
     },
   },
+  {
+    version: 4,
+    name: 'room-player-ready',
+    up: (db) => {
+      const columns = db.prepare('PRAGMA table_info(room_players)').all() as Array<{ name: string }>
+      if (!columns.some(c => c.name === 'ready'))
+        db.exec('ALTER TABLE room_players ADD COLUMN ready INTEGER NOT NULL DEFAULT 0')
+    },
+  },
 ]
 
 const LEGACY_TABLE_NAMES = ['sessions', 'rooms', 'room_players', 'hands', 'arrangements', 'players']

@@ -211,8 +211,9 @@ export const test = base.extend<{ p1: Page, p2: Page }>({
 "Welcome back, {name}" state. That is the whole session flow — no auth needed for guest play.
 
 A composed `twoPlayersInRoom` fixture (or helper) then does: p1 **Create Room** → read code from
-Lobby → p2 **Join Room** with code. With default `autoStart: true` settings, both pages navigate
-to `/room/:code/game` automatically the moment p2 joins — game tests start from there.
+Lobby → p2 **Join Room** with code → both players click **Ready**. With default `autoStart: true`
+settings, both pages navigate to `/room/:code/game` automatically once both players are ready —
+game tests start from there.
 
 ### 4.2 Dealing is random — compute the arrangement, don't hardcode it
 
@@ -371,8 +372,9 @@ and use unique usernames so parallel workers don't trip it for each other.
 | 2 | Join room | p2 joins with code → both lobbies show both player names |
 | 3 | Invalid code | join with nonexistent code → error message on Home, no navigation |
 | 4 | Leave room | p2 **Leave** → p2 back on `/`; p1 sees opponent gone |
-| 5 | Auto-start | both in room + `autoStart` on → both pages auto-navigate to `/room/{code}/game`, 13 cards each |
-| 6 | Manual start | p1 opens room settings, disables auto-start **before** p2 joins → p2 joins → "waiting for owner"; owner clicks **Start Game** → both navigate |
+| 5 | Auto-start | both in room, both click **Ready**, `autoStart` on → both pages auto-navigate to `/room/{code}/game`, 13 cards each |
+| 6 | Ready check | p1 ready, p2 joins → seat 2 shows "Not ready" and both stay in the lobby; p2 clicks **Ready** → both navigate |
+| 7 | Manual start | p1 disables auto-start → p2 joins → no **Start Game** button → both click **Ready** → "waiting for owner"; owner clicks **Start Game** → both navigate |
 
 ### 7.4 `game.spec.ts` — arrangement & submit
 

@@ -27,7 +27,7 @@ interface RoomStatePayload {
     code: string
     status: string
     settings: RoomSettings
-    players: Array<{ id: number, name: string }>
+    players: Array<{ id: number, name: string, ready: boolean }>
   }
 }
 
@@ -81,6 +81,17 @@ describe('roomSettings integration', () => {
     const room = await roomCreated
 
     return { ownerSocket, owner, roomCode: room.code }
+  }
+
+  function readyBoth(
+    ownerSocket: Socket,
+    ownerId: number,
+    joinerSocket: Socket,
+    joinerId: number,
+    code: string,
+  ) {
+    ownerSocket.emit(EVENTS.ROOM_READY, { playerId: ownerId, code, ready: true })
+    joinerSocket.emit(EVENTS.ROOM_READY, { playerId: joinerId, code, ready: true })
   }
 
   it('includes default settings in ROOM_STATE when room is created', async () => {
@@ -194,7 +205,7 @@ describe('roomSettings integration', () => {
     const joinerSocket = await connectClient()
     const joiner = await createSession(joinerSocket, 'Joiner')
 
-    // 2nd player joins → game auto-starts
+    // 2nd player joins and both mark ready → game auto-starts
     const joinerJoined = waitForEvent<RoomPayload>(
       joinerSocket,
       EVENTS.ROOM_JOINED,
@@ -206,6 +217,7 @@ describe('roomSettings integration', () => {
       code: roomCode,
     })
     await joinerJoined
+    readyBoth(ownerSocket, owner.playerId, joinerSocket, joiner.playerId, roomCode)
     await gameDealt
 
     const errorEvent = waitForEvent<ErrorPayload>(ownerSocket, EVENTS.ERROR)
@@ -280,6 +292,7 @@ describe('roomSettings integration', () => {
       code: roomCode,
     })
     await waitForEvent(joinerSocket, EVENTS.ROOM_JOINED)
+    readyBoth(ownerSocket, owner.playerId, joinerSocket, joiner.playerId, roomCode)
 
     const dealt = await ownerDealt
     expect(dealt.timerSeconds).toBe(120)
@@ -312,6 +325,16 @@ describe('roomSettings integration', () => {
       code: roomCode,
     })
     await joinerJoined
+
+    // Both players ready; with autoStart off the server must still wait for GAME_START
+    const bothReady = new Promise<void>((resolve) => {
+      ownerSocket.on(EVENTS.ROOM_STATE, (payload: RoomStatePayload) => {
+        if (payload.room.players.length === 2 && payload.room.players.every(p => p.ready))
+          resolve()
+      })
+    })
+    readyBoth(ownerSocket, owner.playerId, joinerSocket, joiner.playerId, roomCode)
+    await bothReady
 
     // Wait a moment and verify game:dealt was NOT emitted
     await new Promise(resolve => setTimeout(resolve, 100))
@@ -357,6 +380,7 @@ describe('roomSettings integration', () => {
       code: roomCode,
     })
     await waitForEvent(joinerSocket, EVENTS.ROOM_JOINED)
+    readyBoth(ownerSocket, owner.playerId, joinerSocket, joiner.playerId, roomCode)
 
     const { hand } = await ownerDealt
 

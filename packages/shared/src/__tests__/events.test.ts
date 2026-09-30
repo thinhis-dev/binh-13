@@ -21,6 +21,10 @@ describe('eVENTS', () => {
     expect(EVENTS.ROOM_SETTINGS_UPDATED).toBe('room:settings_updated')
   })
 
+  it('has ROOM_READY event', () => {
+    expect(EVENTS.ROOM_READY).toBe('room:ready')
+  })
+
   it('has GAME_START event', () => {
     expect(EVENTS.GAME_START).toBe('game:start')
   })

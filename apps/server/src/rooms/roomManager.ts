@@ -19,6 +19,7 @@ interface PlayerRow {
   name: string
   seat: number
   connected: number
+  ready: number
 }
 
 export interface RoomState {
@@ -31,6 +32,7 @@ export interface RoomState {
     name: string
     seat: 1 | 2
     connected: boolean
+    ready: boolean
   }>
 }
 
@@ -116,7 +118,7 @@ export function leaveRoom(code: string, playerId: number): void {
   db.prepare(
     `
     UPDATE room_players
-    SET connected = 0
+    SET connected = 0, ready = 0
     WHERE room_code = ? AND player_id = ?
   `,
   ).run(normalizedCode, playerId)
@@ -171,7 +173,7 @@ export function getRoom(code: string): RoomState | undefined {
   const players = db
     .prepare(
       `
-      SELECT rp.player_id, p.name, rp.seat, rp.connected
+      SELECT rp.player_id, p.name, rp.seat, rp.connected, rp.ready
       FROM room_players rp
       JOIN players p ON p.id = rp.player_id
       WHERE rp.room_code = ?
@@ -198,6 +200,7 @@ export function getRoom(code: string): RoomState | undefined {
       name: player.name,
       seat: toSeat(player.seat),
       connected: player.connected === 1,
+      ready: player.ready === 1,
     })),
   }
 
@@ -206,6 +209,20 @@ export function getRoom(code: string): RoomState | undefined {
     'Room lookup hit',
   )
   return roomState
+}
+
+export function setPlayerReady(code: string, playerId: number, ready: boolean): void {
+  const normalizedCode = normalizeCode(code)
+  getDb()
+    .prepare('UPDATE room_players SET ready = ? WHERE room_code = ? AND player_id = ?')
+    .run(ready ? 1 : 0, normalizedCode, playerId)
+  logger.debug({ code: normalizedCode, playerId, ready }, 'Room player ready updated')
+}
+
+/** A game may start only when both seats are filled by connected players who marked themselves ready. */
+export function areAllPlayersReady(room: RoomState): boolean {
+  return room.players.length === 2
+    && room.players.every(player => player.connected && player.ready)
 }
 
 export function getRoomByPlayer(playerId: number): RoomState | undefined {
@@ -237,6 +254,7 @@ export function toPublicRoom(room: RoomState): Room {
       name: player.name,
       seat: player.seat,
       connected: player.connected,
+      ready: player.ready,
     })),
   }
 }
