@@ -1,4 +1,4 @@
-import type { Card, RoundResult } from '@binh-13/shared'
+import type { BoardArrangement, Card, GameHintPayload, RoundResult } from '@binh-13/shared'
 import { EVENTS } from '@binh-13/shared'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ensureSocketConnected, socket } from '@/lib/socket'
@@ -16,6 +16,7 @@ export function useSocket() {
   const setTimerExpired = useGameStore(s => s.setTimerExpired)
   const setOpponentSubmitted = useGameStore(s => s.setOpponentSubmitted)
   const setResult = useGameStore(s => s.setResult)
+  const setHint = useGameStore(s => s.setHint)
   const setRematchOpponentRequested = useGameStore(s => s.setRematchOpponentRequested)
   const setRematchRequested = useGameStore(s => s.setRematchRequested)
   const setRematchCancelledReason = useGameStore(s => s.setRematchCancelledReason)
@@ -69,6 +70,21 @@ export function useSocket() {
     },
     [],
   )
+
+  /** Sends the current board so that a timeout can use it. The server sends no reply. */
+  const saveDraft = useCallback(
+    (playerId: number, code: string, arrangement: BoardArrangement) => {
+      ensureSocketConnected()
+      socket.emit(EVENTS.GAME_DRAFT, { playerId, code, arrangement })
+    },
+    [],
+  )
+
+  /** Asks for the server auto-arrangement. The reply arrives as GAME_HINT. */
+  const requestHint = useCallback((playerId: number, code: string) => {
+    ensureSocketConnected()
+    socket.emit(EVENTS.GAME_HINT_REQUEST, { playerId, code })
+  }, [])
 
   const setReady = useCallback((playerId: number, code: string, ready: boolean) => {
     ensureSocketConnected()
@@ -142,6 +158,9 @@ export function useSocket() {
     const handleResult = (result: RoundResult) => {
       setResult(result)
     }
+    const handleHint = (payload: GameHintPayload) => {
+      setHint(payload.arrangement)
+    }
     const handleRematchRequested = (payload: { requestedBy: number }) => {
       // Broadcast goes to the whole room, including the requester's own socket — ignore the
       // echo of our own request, or our own Rematch/Waiting-for-opponent control disappears.
@@ -176,6 +195,7 @@ export function useSocket() {
     socket.on(EVENTS.GAME_TIMER, handleTimer)
     socket.on(EVENTS.GAME_OPPONENT_SUBMITTED, handleOpponentSubmitted)
     socket.on(EVENTS.GAME_RESULT, handleResult)
+    socket.on(EVENTS.GAME_HINT, handleHint)
     socket.on(EVENTS.GAME_REMATCH_REQUESTED, handleRematchRequested)
     socket.on(EVENTS.GAME_REMATCH_ACCEPTED, handleRematchAccepted)
     socket.on(EVENTS.GAME_REMATCH_CANCELLED, handleRematchCancelled)
@@ -190,6 +210,7 @@ export function useSocket() {
       socket.off(EVENTS.GAME_TIMER, handleTimer)
       socket.off(EVENTS.GAME_OPPONENT_SUBMITTED, handleOpponentSubmitted)
       socket.off(EVENTS.GAME_RESULT, handleResult)
+      socket.off(EVENTS.GAME_HINT, handleHint)
       socket.off(EVENTS.GAME_REMATCH_REQUESTED, handleRematchRequested)
       socket.off(EVENTS.GAME_REMATCH_ACCEPTED, handleRematchAccepted)
       socket.off(EVENTS.GAME_REMATCH_CANCELLED, handleRematchCancelled)
@@ -197,7 +218,7 @@ export function useSocket() {
       socket.off(EVENTS.SESSION_RESTORED, handleSessionRestored)
       socket.off(EVENTS.SESSION_RESTORE_FAILED, handleSessionRestoreFailed)
     }
-  }, [setHand, setTimer, setTimerExpired, setOpponentSubmitted, setResult, setRematchOpponentRequested, reset, setRematchRequested, setRematchCancelledReason, setSession, clearSession, playerId])
+  }, [setHand, setTimer, setTimerExpired, setOpponentSubmitted, setResult, setHint, setRematchOpponentRequested, reset, setRematchRequested, setRematchCancelledReason, setSession, clearSession, playerId])
 
   useEffect(() => {
     if (hasAttemptedRestoreRef.current)
@@ -221,6 +242,8 @@ export function useSocket() {
     clearRoom,
     sendMessage,
     submitArrangement,
+    saveDraft,
+    requestHint,
     setReady,
     startGame,
     surrender,

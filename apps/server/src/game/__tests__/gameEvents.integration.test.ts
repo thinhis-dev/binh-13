@@ -7,13 +7,16 @@ import {
   createSocketClient,
   waitForEvent,
 } from '../../__tests__/helpers/socketClient'
+import { updateRoomSettings } from '../../rooms/roomManager'
 import { compareFiveCard } from '../evaluator'
 import { createForfeitArrangement } from '../gameEvents'
+import { getGame } from '../gameManager'
 
 interface SessionCreatedPayload { playerId: number, name: string }
 interface RoomPayload { code: string }
 interface GameDealtPayload { hand: Card[], timerSeconds: number }
 interface ErrorPayload { message: string }
+interface HintPayload { arrangement: { group1: Card[], group2: Card[], group3: Card[] } }
 
 describe('gameEvents integration', () => {
   let port = 0
@@ -438,4 +441,136 @@ describe('gameEvents integration', () => {
     // The game timer should have been cancelled when the room was cleared.
     expect(true).toBe(true)
   }, 15_000)
+
+  describe('drafts and hints', () => {
+    async function startDealtGame() {
+      const room = await setupTwoPlayerRoom()
+      const { s1, s2, p1, p2, code } = room
+      const p1Dealt = waitForEvent<GameDealtPayload>(s1, EVENTS.GAME_DEALT)
+      const p2Dealt = waitForEvent<GameDealtPayload>(s2, EVENTS.GAME_DEALT)
+      s2.emit(EVENTS.ROOM_JOIN, { playerId: p2.playerId, code })
+      s1.emit(EVENTS.ROOM_READY, { playerId: p1.playerId, code, ready: true })
+      s2.emit(EVENTS.ROOM_READY, { playerId: p2.playerId, code, ready: true })
+      const [d1, d2] = await Promise.all([p1Dealt, p2Dealt])
+      return { ...room, d1, d2 }
+    }
+
+    /** The server handles one socket's events in order, so a hint reply means the draft was handled. */
+    async function roundTrip(socket: Socket, playerId: number, code: string) {
+      const hint = waitForEvent<HintPayload>(socket, EVENTS.GAME_HINT)
+      socket.emit(EVENTS.GAME_HINT_REQUEST, { playerId, code })
+      return hint
+    }
+
+    it('game:draft stores the latest valid board without a reply', async () => {
+      const { s1, p1, code, d1 } = await startDealtGame()
+      const draft = validArrangement(p1.playerId, d1.hand)
+
+      s1.emit(EVENTS.GAME_DRAFT, { playerId: p1.playerId, code, arrangement: draft })
+      await roundTrip(s1, p1.playerId, code)
+
+      expect(getGame(code)!.drafts.get(p1.playerId)).toEqual(draft)
+    })
+
+    it('game:draft with foreign cards → error, and no draft is stored', async () => {
+      const { s1, p1, code, d1, d2 } = await startDealtGame()
+      const draft = validArrangement(p1.playerId, d1.hand)
+      draft.group3[0] = d2.hand[0]
+
+      const err = waitForEvent<ErrorPayload>(s1, EVENTS.ERROR)
+      s1.emit(EVENTS.GAME_DRAFT, { playerId: p1.playerId, code, arrangement: draft })
+
+      expect((await err).message).toBe('Invalid cards in arrangement')
+      expect(getGame(code)!.drafts.has(p1.playerId)).toBe(false)
+    })
+
+    it('game:draft after submit → error, and the submission does not change', async () => {
+      const { s1, s2, p1, code, d1 } = await startDealtGame()
+      const submitted = validArrangement(p1.playerId, d1.hand)
+      const opponentNotified = waitForEvent(s2, EVENTS.GAME_OPPONENT_SUBMITTED)
+      s1.emit(EVENTS.GAME_SUBMIT, { playerId: p1.playerId, code, arrangement: submitted })
+      await opponentNotified
+
+      const err = waitForEvent<ErrorPayload>(s1, EVENTS.ERROR)
+      const other = { ...submitted, group1: submitted.group2, group2: submitted.group1 }
+      s1.emit(EVENTS.GAME_DRAFT, { playerId: p1.playerId, code, arrangement: other })
+
+      expect((await err).message).toBe('Already submitted')
+      expect(getGame(code)!.submissions.get(p1.playerId)).toEqual(submitted)
+      expect(getGame(code)!.drafts.has(p1.playerId)).toBe(false)
+    })
+
+    it('game:hint_request → only the requester gets game:hint with the dealt cards', async () => {
+      const { s1, s2, p1, p2, code, d1, d2 } = await startDealtGame()
+      const s2Hints = vi.fn()
+      s2.on(EVENTS.GAME_HINT, s2Hints)
+
+      const { arrangement } = await roundTrip(s1, p1.playerId, code)
+
+      const ids = [...arrangement.group1, ...arrangement.group2, ...arrangement.group3].map(c => c.id)
+      expect(arrangement.group1).toHaveLength(5)
+      expect(arrangement.group2).toHaveLength(5)
+      expect(arrangement.group3).toHaveLength(3)
+      expect(ids.sort()).toEqual(d1.hand.map(c => c.id).sort())
+      expect(compareFiveCard(arrangement.group1, arrangement.group2)).toBeGreaterThanOrEqual(0)
+
+      // s2 gets exactly one hint, the reply to its own request, with its own cards.
+      const own = await roundTrip(s2, p2.playerId, code)
+      expect(s2Hints).toHaveBeenCalledTimes(1)
+      const ownIds = [...own.arrangement.group1, ...own.arrangement.group2, ...own.arrangement.group3].map(c => c.id)
+      expect(ownIds.sort()).toEqual(d2.hand.map(c => c.id).sort())
+    })
+
+    it('surrender still uses the forfeit arrangement, even with a draft', async () => {
+      const { s1, p1, code, d1 } = await startDealtGame()
+      s1.emit(EVENTS.GAME_DRAFT, { playerId: p1.playerId, code, arrangement: validArrangement(p1.playerId, d1.hand) })
+      await roundTrip(s1, p1.playerId, code)
+
+      const result = waitForEvent<RoundResult>(s1, EVENTS.GAME_RESULT)
+      s1.emit(EVENTS.GAME_SURRENDER, { playerId: p1.playerId, code })
+      const { arrangements } = await result
+
+      const mine = arrangements.p1.playerId === p1.playerId ? arrangements.p1 : arrangements.p2
+      expect(mine).toEqual(createForfeitArrangement(p1.playerId, d1.hand))
+    })
+  })
+
+  describe('instant wins with allowFoul off', () => {
+    function cards(ids: string): Card[] {
+      return ids.split(' ').map(id => ({ id, rank: id[0] as Card['rank'], suit: id[1] as Card['suit'] }))
+    }
+
+    async function startNoFoulGame(back: string, middle: string, front: string) {
+      const { s1, s2, p1, p2, code } = await setupTwoPlayerRoom()
+      const p1Dealt = waitForEvent<GameDealtPayload>(s1, EVENTS.GAME_DEALT)
+      s2.emit(EVENTS.ROOM_JOIN, { playerId: p2.playerId, code })
+      s1.emit(EVENTS.ROOM_READY, { playerId: p1.playerId, code, ready: true })
+      s2.emit(EVENTS.ROOM_READY, { playerId: p2.playerId, code, ready: true })
+      await p1Dealt
+
+      updateRoomSettings(code, { allowFoul: false })
+      const arrangement = { group1: cards(back), group2: cards(middle), group3: cards(front) }
+      getGame(code)!.hands.set(p1.playerId, [...arrangement.group1, ...arrangement.group2, ...arrangement.group3])
+      return { s1, s2, p1, code, arrangement }
+    }
+
+    it('accepts a fouled Three flushes board', async () => {
+      // Middle (ace-high flush) beats Back (jack-high flush): a foul, but an instant win.
+      const { s1, s2, p1, code, arrangement } = await startNoFoulGame('JS 9S 6S 4S 2S', 'AH QH 8H 5H 3H', 'KD TD 9D')
+
+      const opponentNotified = waitForEvent(s2, EVENTS.GAME_OPPONENT_SUBMITTED)
+      s1.emit(EVENTS.GAME_SUBMIT, { playerId: p1.playerId, code, arrangement })
+
+      await expect(opponentNotified).resolves.toBeDefined()
+    })
+
+    it('still rejects a foul board without an instant win', async () => {
+      const { s1, p1, code, arrangement } = await startNoFoulGame('2S 3H 4D 6C 8S', 'KS KH QS QH JC', '3S 4H 5C')
+
+      const err = waitForEvent<ErrorPayload>(s1, EVENTS.ERROR)
+      s1.emit(EVENTS.GAME_SUBMIT, { playerId: p1.playerId, code, arrangement })
+
+      expect((await err).message).toBe('Foul arrangements are not allowed in this room')
+    })
+  })
 })

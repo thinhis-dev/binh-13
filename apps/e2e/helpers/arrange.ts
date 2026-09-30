@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 import type { GroupKey } from './selectors'
 import { expect } from '@playwright/test'
 import { startGameForBoth } from './room'
-import { cardInGroup, emptySlotIn, handArea, submitArrangementButton } from './selectors'
+import { boardCards, cardOnBoard, dropTarget, rowCards, submitArrangementButton } from './selectors'
 import { quickFoulCheck, RANK_VALUE } from './shared'
 
 export interface Arrangement {
@@ -16,15 +16,41 @@ function cardFromId(id: string): Card {
   return { id, rank: id[0] as Rank, suit: id[1] as Suit }
 }
 
+const GROUP_KEYS: GroupKey[] = ['group1', 'group2', 'group3']
+const ROW_SIZE: Record<GroupKey, number> = { group1: 5, group2: 5, group3: 3 }
+
+export type Board = Record<GroupKey, string[]>
+
 /**
- * Reads the dealt hand's card ids from the DOM via `data-card-id` (no fixed seed to assert
- * against). `evaluateAll` itself doesn't auto-wait, so without the count assertion first this
- * can race the initial deal render and silently return `[]` right after navigating to /game.
+ * Reads the card ids of each row from the DOM via `data-card-id` (no fixed seed to assert
+ * against). `evaluateAll` itself doesn't auto-wait, so the count assertions come first: without
+ * them this can race the initial deal render and silently return `[]` right after navigating.
  */
+export async function readBoard(page: Page): Promise<Board> {
+  const board = {} as Board
+  for (const key of GROUP_KEYS) {
+    const cards = rowCards(page, key)
+    await expect(cards).toHaveCount(ROW_SIZE[key])
+    board[key] = await cards.evaluateAll(elements => elements.map(el => el.getAttribute('data-card-id') as string))
+  }
+  return board
+}
+
+/** All 13 dealt card ids, Back row first. */
 export async function readHandCardIds(page: Page): Promise<string[]> {
-  const cards = handArea(page).locator('[data-card-id]')
-  await expect(cards).toHaveCount(13)
-  return cards.evaluateAll(elements => elements.map(el => el.getAttribute('data-card-id') as string))
+  await expect(boardCards(page)).toHaveCount(13)
+  const board = await readBoard(page)
+  return [...board.group1, ...board.group2, ...board.group3]
+}
+
+/** The board after a swap of cards a and b. */
+function swapped(board: Board, a: string, b: string): Board {
+  const swap = (id: string) => (id === a ? b : id === b ? a : id)
+  return {
+    group1: board.group1.map(swap),
+    group2: board.group2.map(swap),
+    group3: board.group3.map(swap),
+  }
 }
 
 function* combinations<T>(items: T[], size: number): Generator<T[]> {
@@ -96,57 +122,85 @@ export function computeFoulArrangement(cardIds: string[]): Arrangement {
   return { group1: sorted.slice(5, 10), group2: sorted.slice(0, 5), group3: sorted.slice(10, 13) }
 }
 
-/** Click-based placement: select a hand card, then click an empty slot in the target group. */
-export async function assignArrangementByClick(page: Page, arrangement: Arrangement) {
-  const groups: Array<[GroupKey, Card[]]> = [
-    ['group1', arrangement.group1],
-    ['group2', arrangement.group2],
-    ['group3', arrangement.group3],
-  ]
-
-  for (const [groupKey, cards] of groups) {
-    for (const card of cards) {
-      await handArea(page).locator(`[data-card-id="${card.id}"]`).click()
-      await emptySlotIn(page, groupKey).first().click()
-      await expect(cardInGroup(page, groupKey, card.id)).toBeVisible()
-    }
-  }
-}
-
 /**
- * Real pointer drag between two droppable regions — dnd-kit's PointerSensor uses an 8px
+ * Real pointer drag of one card onto another — dnd-kit's PointerSensor uses an 8px
  * activation distance, so the helper must move past that before it picks the card up.
  * Playwright's locator.dragTo()/page.dragAndDrop() do not work here (pointer, not HTML5 DnD).
+ * Repeated pointer drags are unreliable in this sandboxed Chromium: after a drop, dnd-kit
+ * only re-activates behind an unexplained ~1s delay with no DOM-observable condition to poll
+ * for. So only single-swap specs use this; full arrangements use swapByKeyboard.
  */
-async function dragBetween(page: Page, cardLocator: ReturnType<Page['locator']>, targetLocator: ReturnType<Page['locator']>) {
-  const from = await cardLocator.boundingBox()
-  const to = await targetLocator.boundingBox()
+export async function swapByPointer(page: Page, a: string, b: string) {
+  const expected = swapped(await readBoard(page), a, b)
+  const from = await cardOnBoard(page, a).boundingBox()
+  const to = await cardOnBoard(page, b).boundingBox()
   if (!from || !to)
-    throw new Error('dragBetween: missing bounding box for card or drop target')
+    throw new Error('swapByPointer: missing bounding box for a card')
 
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
   await page.mouse.down()
   await page.mouse.move(from.x + from.width / 2 + 12, from.y + from.height / 2)
   await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 })
   await page.mouse.up()
-}
-
-export async function dragCardToGroup(page: Page, cardId: string, group: GroupKey) {
-  await dragBetween(page, handArea(page).locator(`[data-card-id="${cardId}"]`), emptySlotIn(page, group).first())
-  await expect(cardInGroup(page, group, cardId)).toBeVisible()
+  await expect.poll(() => readBoard(page)).toEqual(expected)
 }
 
 /**
- * Removing a placed card back to hand is also a first-class click interaction (the same
- * click-to-remove path GroupSlot wires up), not just a reverse drag. We rely on it here
- * rather than a reverse pointer-drag: dragging a card back OUT of a group needs dnd-kit to
- * re-settle after the prior drop, and in this sandboxed Chromium that only ever activates
- * reliably behind an unexplained ~1s delay with no DOM-observable condition to poll for —
- * a fixed sleep here would be exactly the kind of flake-prone workaround this project avoids.
+ * Keyboard drag: Space picks card a up, each arrow key jumps the dragged card to the next
+ * card in that direction (see apps/web/src/lib/dndKeyboard.ts), and Space drops it on card b.
+ * The helper first moves to the row of b, then along that row, and waits for the highlighted
+ * drop target to change after each key press. The board sets an instant keyboard scroll, so
+ * a jump that scrolls the page is finished before the next key press.
  */
-export async function removeCardFromGroup(page: Page, cardId: string, fromGroup: GroupKey) {
-  await cardInGroup(page, fromGroup, cardId).click()
-  await expect(handArea(page).locator(`[data-card-id="${cardId}"]`)).toBeVisible()
+export async function swapByKeyboard(page: Page, a: string, b: string) {
+  const expected = swapped(await readBoard(page), a, b)
+  const target = await cardOnBoard(page, b).boundingBox()
+  if (!target)
+    throw new Error('swapByKeyboard: missing bounding box for the target card')
+  const targetX = target.x + target.width / 2
+  const targetY = target.y + target.height / 2
+
+  await cardOnBoard(page, a).focus()
+  await page.keyboard.press('Space')
+  await expect(cardOnBoard(page, a)).toHaveAttribute('aria-pressed', 'true')
+  // dnd-kit's KeyboardSensor adds its keydown listener in a setTimeout(0) after activation,
+  // and Chromium can dispatch an input event before that timer runs, which loses the key.
+  // Timers with the same delay run in order, so this one resolves after the listener exists.
+  await page.evaluate(() => new Promise(resolve => setTimeout(resolve, 0)))
+
+  let current = a
+  for (let step = 0; current !== b; step++) {
+    if (step > 20)
+      throw new Error(`swapByKeyboard: could not reach ${b} from ${a}`)
+    const box = await cardOnBoard(page, current).boundingBox()
+    if (!box)
+      throw new Error('swapByKeyboard: missing bounding box for the current card')
+    const x = box.x + box.width / 2
+    const y = box.y + box.height / 2
+    const key = Math.abs(y - targetY) > box.height / 2
+      ? (y > targetY ? 'ArrowUp' : 'ArrowDown')
+      : (x > targetX ? 'ArrowLeft' : 'ArrowRight')
+
+    await page.keyboard.press(key)
+    await expect(dropTarget(page)).toHaveCount(1)
+    await expect(dropTarget(page)).not.toHaveAttribute('data-card-id', current)
+    current = await dropTarget(page).getAttribute('data-card-id') as string
+  }
+
+  await page.keyboard.press('Space')
+  await expect.poll(() => readBoard(page)).toEqual(expected)
+}
+
+/** Swaps the wanted card into each of the 13 positions in turn: at most 12 swaps. */
+export async function arrangeBySwaps(page: Page, arrangement: Arrangement) {
+  for (const key of GROUP_KEYS) {
+    for (const [index, card] of arrangement[key].entries()) {
+      const board = await readBoard(page)
+      const current = board[key][index]
+      if (current !== card.id)
+        await swapByKeyboard(page, current, card.id)
+    }
+  }
 }
 
 export async function submitArrangement(page: Page) {
@@ -156,7 +210,7 @@ export async function submitArrangement(page: Page) {
 /**
  * The crown-jewel helper: deals both players in, arranges + submits a valid hand for each,
  * and waits for the result page. This is the one expensive full-round path — every other
- * spec that needs a finished round reuses it instead of re-deriving the drag/click sequence.
+ * spec that needs a finished round reuses it instead of re-deriving the swap sequence.
  */
 export async function playFullRound(p1: Page, p2: Page): Promise<string> {
   const code = await startGameForBoth(p1, p2)
@@ -164,7 +218,7 @@ export async function playFullRound(p1: Page, p2: Page): Promise<string> {
   for (const page of [p1, p2]) {
     const cardIds = await readHandCardIds(page)
     const arrangement = computeValidArrangement(cardIds)
-    await assignArrangementByClick(page, arrangement)
+    await arrangeBySwaps(page, arrangement)
     await submitArrangement(page)
   }
 

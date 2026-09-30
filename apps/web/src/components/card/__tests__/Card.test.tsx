@@ -84,4 +84,13 @@ describe('card', () => {
     // selected so ring-green-500 wins visually
     expect(el).toHaveClass('ring-green-500')
   })
+
+  it('renders a board card with a row as a focusable drag handle without onClick', () => {
+    render(<Card card={MOCK_HAND[0]} dragSource="group1" dropTarget />)
+
+    const handle = screen.getByRole('button', { name: /a of spades/i })
+    expect(handle).toHaveAttribute('aria-roledescription', 'draggable')
+    expect(handle).toHaveAttribute('tabindex', '0')
+    expect(handle).not.toHaveAttribute('data-drop-over')
+  })
 })

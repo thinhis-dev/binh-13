@@ -1,18 +1,13 @@
 import type { Card } from '@binh-13/shared'
 import type { GroupKey } from '@/hooks/useArrangement'
 
-export type DragSource = 'hand' | GroupKey
-
+/** Data on a dragged board card: the card and the row it sits in. */
 export interface DragData {
   card: Card
-  source: DragSource
+  row: GroupKey
 }
 
-export function isDragSource(value: unknown): value is DragSource {
-  return (
-    value === 'hand'
-    || value === 'group1'
-    || value === 'group2'
-    || value === 'group3'
-  )
+/** Data on a card that accepts a drop. A drop swaps the dragged card with this card. */
+export interface DropData {
+  card: Card
 }

@@ -2,21 +2,27 @@ import { expect, test } from '../fixtures/players'
 import { playFullRound } from '../helpers/arrange'
 import {
   acceptRematchButton,
+  boardCards,
   declineRematchButton,
-  handCards,
   rematchButton,
   rematchCancelledNotice,
   rematchOpponentBanner,
   rematchWaitingIndicator,
   roundResult,
+  skipRevealButton,
 } from '../helpers/selectors'
 
 test.describe('result & rematch', () => {
-  test('shows three group rows and an overall verdict for both players (win/loss not asserted)', async ({ p1, p2 }) => {
+  test('reveals the rows one by one; Skip shows three group rows and the verdict (win/loss not asserted)', async ({ p1, p2 }) => {
     await playFullRound(p1, p2)
 
     for (const page of [p1, p2]) {
       await expect(roundResult(page)).toBeVisible()
+      // An instant-win deal (rare) shows everything at once, without a Skip button.
+      if (await skipRevealButton(page).count() > 0) {
+        await expect(roundResult(page)).not.toContainText(/You Win|You Lose|Draw!/)
+        await skipRevealButton(page).click()
+      }
       await expect(roundResult(page)).toContainText(/You Win|You Lose|Draw!/)
       const groupMarkers = page.locator('[aria-label="Won"], [aria-label="Lost"], [aria-label="Draw"]')
       await expect(groupMarkers).toHaveCount(3)
@@ -34,8 +40,8 @@ test.describe('result & rematch', () => {
 
     await expect(p1).toHaveURL(new RegExp(`/room/${code}/game$`))
     await expect(p2).toHaveURL(new RegExp(`/room/${code}/game$`))
-    await expect(handCards(p1)).toHaveCount(13)
-    await expect(handCards(p2)).toHaveCount(13)
+    await expect(boardCards(p1)).toHaveCount(13)
+    await expect(boardCards(p2)).toHaveCount(13)
   })
 
   test('rematch — decline shows the requester a cancelled notice', async ({ p1, p2 }) => {

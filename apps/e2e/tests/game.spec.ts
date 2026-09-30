@@ -2,107 +2,118 @@ import type { Rank } from '@binh-13/shared'
 import { expect } from '@playwright/test'
 import { test } from '../fixtures/players'
 import {
-  assignArrangementByClick,
+  arrangeBySwaps,
   computeFoulArrangement,
   computeValidArrangement,
-  dragCardToGroup,
+  readBoard,
   readHandCardIds,
-  removeCardFromGroup,
   submitArrangement,
+  swapByKeyboard,
+  swapByPointer,
 } from '../helpers/arrange'
 import { startGameForBoth } from '../helpers/room'
 import {
   foulWarning,
-  groupSlot,
-  handCards,
+  hintButton,
   opponentSubmittedIndicator,
+  rowCards,
   selfSubmittedIndicator,
   sortButton,
+  sortedDealSwitch,
   submitArrangementButton,
 } from '../helpers/selectors'
 import { RANK_VALUE } from '../helpers/shared'
 
-test.describe('arrangement & submit', () => {
-  test('deal — 13 cards each, empty groups, submit disabled', async ({ p1, p2 }) => {
+const SUIT_VALUE: Record<string, number> = { S: 4, H: 3, D: 2, C: 1 }
+
+/** Same order as sortCards in apps/web/src/lib/cards.ts: rank descending, then S > H > D > C. */
+function sortIds(ids: string[]) {
+  return [...ids].sort((a, b) =>
+    RANK_VALUE[b[0] as Rank] - RANK_VALUE[a[0] as Rank] || SUIT_VALUE[b[1]] - SUIT_VALUE[a[1]])
+}
+
+test.describe('swap board & submit', () => {
+  test('deal — 13 cards straight into Front 3, Middle 5, Back 5, no hand area', async ({ p1, p2 }) => {
     await startGameForBoth(p1, p2)
 
     for (const page of [p1, p2]) {
-      await expect(handCards(page)).toHaveCount(13)
-      await expect(groupSlot(page, 'group1')).toContainText('0 / 5 cards')
-      await expect(groupSlot(page, 'group2')).toContainText('0 / 5 cards')
-      await expect(groupSlot(page, 'group3')).toContainText('0 / 3 cards')
-      await expect(submitArrangementButton(page)).toBeDisabled()
+      await expect(rowCards(page, 'group3')).toHaveCount(3)
+      await expect(rowCards(page, 'group2')).toHaveCount(5)
+      await expect(rowCards(page, 'group1')).toHaveCount(5)
+      await expect(page.getByTestId('hand-area')).toHaveCount(0)
+      await expect(page.getByTestId('empty-slot')).toHaveCount(0)
     }
   })
 
-  test('sort orders the hand by rank descending', async ({ p1, p2 }) => {
+  test('pointer drag of a card onto a card in another row swaps them', async ({ p1, p2 }) => {
     await startGameForBoth(p1, p2)
 
-    const before = await readHandCardIds(p1)
+    const board = await readBoard(p1)
+    await swapByPointer(p1, board.group1[0], board.group3[0])
+  })
+
+  test('keyboard drag of a card onto a card in another row swaps them', async ({ p1, p2 }) => {
+    await startGameForBoth(p1, p2)
+
+    const board = await readBoard(p1)
+    await swapByKeyboard(p1, board.group3[2], board.group1[1])
+  })
+
+  test('sort orders the cards inside each row without moving them between rows', async ({ p1, p2 }) => {
+    await startGameForBoth(p1, p2)
+
+    const before = await readBoard(p1)
     await sortButton(p1).click()
-    const after = await readHandCardIds(p1)
 
-    expect(after).not.toEqual(before)
-    expect(after).toHaveLength(13)
-    const ranks = after.map(id => RANK_VALUE[id[0] as Rank])
-    for (let i = 1; i < ranks.length; i++)
-      expect(ranks[i]).toBeLessThanOrEqual(ranks[i - 1])
+    await expect.poll(() => readBoard(p1)).toEqual({
+      group1: sortIds(before.group1),
+      group2: sortIds(before.group2),
+      group3: sortIds(before.group3),
+    })
   })
 
-  test('drag a card into a group, then remove it back to hand', async ({ p1, p2 }) => {
+  test('sorted deal preference set before the deal fills the rows in sorted order', async ({ p1, p2 }) => {
+    await p1.evaluate(() => localStorage.setItem('binh13.dealOrder', 'sorted'))
     await startGameForBoth(p1, p2)
 
-    const [cardId] = await readHandCardIds(p1)
-    await dragCardToGroup(p1, cardId, 'group3')
-    await expect(handCards(p1)).toHaveCount(12)
-
-    // Removal uses the click-to-remove path (see removeCardFromGroup) rather than a reverse
-    // drag — see helpers/arrange.ts for why the raw pointer-drag-out direction was dropped.
-    await removeCardFromGroup(p1, cardId, 'group3')
-    await expect(handCards(p1)).toHaveCount(13)
+    await expect(sortedDealSwitch(p1)).toBeChecked()
+    const ids = await readHandCardIds(p1)
+    expect(ids).toEqual(sortIds(ids))
   })
 
-  test('submit stays disabled until all 13 cards are placed', async ({ p1, p2 }) => {
+  test('foul warning appears for a weak Back / strong Middle board and disables submit', async ({ p1, p2 }) => {
     await startGameForBoth(p1, p2)
 
-    const cardIds = await readHandCardIds(p1)
-    const arrangement = computeValidArrangement(cardIds)
-    // Place everything except the last Front card.
-    const partial = {
-      group1: arrangement.group1,
-      group2: arrangement.group2,
-      group3: arrangement.group3.slice(0, 2),
-    }
-    await assignArrangementByClick(p1, partial)
-    await expect(submitArrangementButton(p1)).toBeDisabled()
-
-    await assignArrangementByClick(p1, { group1: [], group2: [], group3: arrangement.group3.slice(2) })
-    await expect(submitArrangementButton(p1)).toBeEnabled()
-  })
-
-  test('foul warning appears for a deliberately weak Back / strong Middle split', async ({ p1, p2 }) => {
-    await startGameForBoth(p1, p2)
-
-    const cardIds = await readHandCardIds(p1)
-    const arrangement = computeFoulArrangement(cardIds)
-    await assignArrangementByClick(p1, arrangement)
+    const arrangement = computeFoulArrangement(await readHandCardIds(p1))
+    await arrangeBySwaps(p1, arrangement)
 
     await expect(foulWarning(p1)).toBeVisible()
     await expect(submitArrangementButton(p1)).toBeDisabled()
   })
 
-  test('full round — both submit, see the opponent-submitted indicator, then reach result', async ({ p1, p2 }) => {
+  test('hint fills the board with a non-foul arrangement of the same cards', async ({ p1, p2 }) => {
     await startGameForBoth(p1, p2)
 
-    const p1Arrangement = computeValidArrangement(await readHandCardIds(p1))
-    await assignArrangementByClick(p1, p1Arrangement)
+    const before = await readBoard(p1)
+    await hintButton(p1).click()
+
+    await expect.poll(() => readBoard(p1)).not.toEqual(before)
+    const after = await readHandCardIds(p1)
+    expect([...after].sort()).toEqual([...before.group1, ...before.group2, ...before.group3].sort())
+    await expect(foulWarning(p1)).toHaveCount(0)
+    await expect(submitArrangementButton(p1)).toBeEnabled()
+  })
+
+  test('full round — both arrange by swaps, submit, see the opponent-submitted indicator, then reach result', async ({ p1, p2 }) => {
+    await startGameForBoth(p1, p2)
+
+    await arrangeBySwaps(p1, computeValidArrangement(await readHandCardIds(p1)))
     await submitArrangement(p1)
 
     await expect(selfSubmittedIndicator(p1)).toBeVisible()
     await expect(opponentSubmittedIndicator(p2)).toBeVisible()
 
-    const p2Arrangement = computeValidArrangement(await readHandCardIds(p2))
-    await assignArrangementByClick(p2, p2Arrangement)
+    await arrangeBySwaps(p2, computeValidArrangement(await readHandCardIds(p2)))
     await submitArrangement(p2)
 
     await expect(p1).toHaveURL(/\/room\/[A-Z0-9]{6}\/result$/)

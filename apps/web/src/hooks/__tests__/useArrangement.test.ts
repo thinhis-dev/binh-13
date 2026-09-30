@@ -1,252 +1,172 @@
 import type { Card } from '@binh-13/shared'
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { RANK_VALUE } from '@/lib/cards'
+import { sortCards } from '@/lib/cards'
 import { MOCK_HAND } from '@/lib/mockCards'
 import { useArrangement } from '../useArrangement'
 
-const firstCard = MOCK_HAND[0]
-
-function fillGroup(cards: Card[], count: number) {
-  return cards.slice(0, count)
+function hand(ids: string): Card[] {
+  return ids.split(' ').map(id => ({
+    id,
+    rank: id[0] as Card['rank'],
+    suit: id[1] as Card['suit'],
+  }))
 }
 
+function ids(cards: Card[]) {
+  return cards.map(card => card.id)
+}
+
+// Deliberately unsorted deal.
+const DEALT = [...MOCK_HAND].reverse()
+
 describe('useArrangement', () => {
-  it('initializes hand with cards and empty groups', () => {
-    const { result } = renderHook(() => useArrangement(MOCK_HAND))
+  it('deals the cards straight into Back 5, Middle 5, Front 3', () => {
+    const { result } = renderHook(() => useArrangement(DEALT))
 
-    expect(result.current.hand).toHaveLength(13)
-    expect(result.current.group1).toHaveLength(0)
-    expect(result.current.group2).toHaveLength(0)
-    expect(result.current.group3).toHaveLength(0)
+    expect(result.current.group1).toEqual(DEALT.slice(0, 5))
+    expect(result.current.group2).toEqual(DEALT.slice(5, 10))
+    expect(result.current.group3).toEqual(DEALT.slice(10, 13))
   })
 
-  it('selects and clears a card id', () => {
-    const { result } = renderHook(() => useArrangement(MOCK_HAND))
+  it('deals in sorted order when the deal order is sorted', () => {
+    const { result } = renderHook(() => useArrangement(DEALT, { order: 'sorted' }))
 
-    act(() => result.current.selectCard(firstCard.id))
-    expect(result.current.selectedCardId).toBe(firstCard.id)
-
-    act(() => result.current.selectCard(null))
-    expect(result.current.selectedCardId).toBeNull()
+    expect(result.current.group1).toEqual(sortCards(DEALT).slice(0, 5))
   })
 
-  it('moves a card from hand to a group', () => {
-    const { result } = renderHook(() => useArrangement(MOCK_HAND))
+  it('init re-deals new cards with the given order', () => {
+    const { result } = renderHook(() => useArrangement(DEALT))
 
-    act(() => result.current.assignToGroup('group1', firstCard))
+    act(() => result.current.init(MOCK_HAND, 'sorted'))
 
-    expect(result.current.hand).toHaveLength(12)
-    expect(result.current.group1).toEqual([firstCard])
+    expect(result.current.group1).toEqual(sortCards(MOCK_HAND).slice(0, 5))
+    expect(result.current.group3).toHaveLength(3)
   })
 
-  it('does nothing when the target group is full', () => {
-    const { result } = renderHook(() => useArrangement(MOCK_HAND))
+  it('swaps two cards inside one row and keeps the others in place', () => {
+    const { result } = renderHook(() => useArrangement(DEALT))
+    const [a, b, c, d, e] = DEALT
 
-    for (const card of fillGroup(MOCK_HAND, 5)) {
-      act(() => result.current.assignToGroup('group1', card))
-    }
+    act(() => result.current.swapCards(a.id, c.id))
 
-    act(() => result.current.assignToGroup('group1', MOCK_HAND[5]))
+    expect(result.current.group1).toEqual([c, b, a, d, e])
+    expect(result.current.group2).toEqual(DEALT.slice(5, 10))
+  })
 
+  it('swaps two cards across rows and keeps the row lengths 5 / 5 / 3', () => {
+    const { result } = renderHook(() => useArrangement(DEALT))
+    const back = DEALT[1]
+    const front = DEALT[12]
+
+    act(() => result.current.swapCards(back.id, front.id))
+
+    expect(result.current.group1[1]).toEqual(front)
+    expect(result.current.group3[2]).toEqual(back)
     expect(result.current.group1).toHaveLength(5)
-    expect(result.current.hand).toHaveLength(8)
-    expect(
-      result.current.hand.some(card => card.id === MOCK_HAND[5].id),
-    ).toBe(true)
-  })
-
-  it('returns a grouped card to hand', () => {
-    const { result } = renderHook(() => useArrangement(MOCK_HAND))
-
-    act(() => result.current.assignToGroup('group1', firstCard))
-    act(() => result.current.removeFromGroup('group1', firstCard))
-
-    expect(result.current.group1).toHaveLength(0)
-    expect(result.current.hand.some(card => card.id === firstCard.id)).toBe(
-      true,
-    )
-  })
-
-  it('tracks completion only when all groups are full', () => {
-    const { result } = renderHook(() => useArrangement(MOCK_HAND))
-
-    expect(result.current.isComplete).toBe(false)
-
-    for (const card of MOCK_HAND.slice(0, 5)) {
-      act(() => result.current.assignToGroup('group1', card))
-    }
-    for (const card of MOCK_HAND.slice(5, 10)) {
-      act(() => result.current.assignToGroup('group2', card))
-    }
-
-    expect(result.current.isComplete).toBe(false)
-
-    for (const card of MOCK_HAND.slice(10, 13)) {
-      act(() => result.current.assignToGroup('group3', card))
-    }
-
-    expect(result.current.isComplete).toBe(true)
-  })
-
-  it('does not duplicate a card when assigned twice', () => {
-    const { result } = renderHook(() => useArrangement(MOCK_HAND))
-
-    act(() => result.current.assignToGroup('group1', firstCard))
-    act(() => result.current.assignToGroup('group2', firstCard))
-
-    const allCards = [
-      ...result.current.hand,
-      ...result.current.group1,
-      ...result.current.group2,
-      ...result.current.group3,
-    ]
-    expect(allCards.filter(card => card.id === firstCard.id)).toHaveLength(1)
-    expect(result.current.group2).toHaveLength(0)
-  })
-
-  it('resets fully when init is called on an already-initialised hook', () => {
-    const { result } = renderHook(() => useArrangement(MOCK_HAND))
-
-    act(() => result.current.assignToGroup('group1', firstCard))
-    expect(result.current.group1).toHaveLength(1)
-    expect(result.current.hand).toHaveLength(12)
-
-    act(() => result.current.init(MOCK_HAND))
-
-    expect(result.current.hand).toHaveLength(13)
-    expect(result.current.group1).toHaveLength(0)
-    expect(result.current.selectedCardId).toBeNull()
-    expect(result.current.isComplete).toBe(false)
-  })
-
-  it('restores a returned card to its original hand position', () => {
-    const { result } = renderHook(() => useArrangement(MOCK_HAND))
-    const cardAtFive = MOCK_HAND[5] // 9H — index 5 in the original order
-
-    act(() => result.current.assignToGroup('group1', cardAtFive))
-    expect(result.current.hand[4]).not.toEqual(cardAtFive) // gap exists
-
-    act(() => result.current.removeFromGroup('group1', cardAtFive))
-
-    expect(result.current.hand[5]).toEqual(cardAtFive) // restored to original index
-  })
-
-  it('moveToGroup atomically transfers a card between two groups', () => {
-    const { result } = renderHook(() => useArrangement(MOCK_HAND))
-
-    act(() => result.current.assignToGroup('group1', firstCard))
-    expect(result.current.group1).toHaveLength(1)
-    expect(result.current.hand).toHaveLength(12)
-
-    act(() => result.current.moveToGroup('group1', 'group2', firstCard))
-
-    expect(result.current.group1).toHaveLength(0)
-    expect(result.current.group2).toEqual([firstCard])
-    // Hand must not be affected
-    expect(result.current.hand).toHaveLength(12)
-  })
-
-  it('moveToGroup is a no-op when source does not contain the card', () => {
-    const { result } = renderHook(() => useArrangement(MOCK_HAND))
-
-    act(() => result.current.moveToGroup('group1', 'group2', firstCard))
-
-    expect(result.current.group1).toHaveLength(0)
-    expect(result.current.group2).toHaveLength(0)
-    expect(result.current.hand).toHaveLength(13)
-  })
-
-  it('moveToGroup is a no-op when the destination group is full', () => {
-    const { result } = renderHook(() => useArrangement(MOCK_HAND))
-
-    // Fill group2 to capacity (5)
-    for (const card of MOCK_HAND.slice(0, 5)) {
-      act(() => result.current.assignToGroup('group2', card))
-    }
-    act(() => result.current.assignToGroup('group1', MOCK_HAND[5]))
-
-    act(() => result.current.moveToGroup('group1', 'group2', MOCK_HAND[5]))
-
-    expect(result.current.group1).toEqual([MOCK_HAND[5]])
     expect(result.current.group2).toHaveLength(5)
+    expect(result.current.group3).toHaveLength(3)
   })
 
-  describe('sortHand', () => {
-    it('sorts remaining hand cards by rank descending, suit descending', () => {
-      const { result } = renderHook(() => useArrangement(MOCK_HAND))
+  it('keeps the same rows for a swap with itself or with an unknown card', () => {
+    const { result } = renderHook(() => useArrangement(DEALT))
+    const before = result.current.group1
 
-      act(() => result.current.sortHand())
+    act(() => result.current.swapCards(DEALT[0].id, DEALT[0].id))
+    expect(result.current.group1).toBe(before)
 
-      const { hand } = result.current
-      // Verify non-increasing rank order using numeric RANK_VALUE
-      for (let i = 1; i < hand.length; i++) {
-        expect(RANK_VALUE[hand[i].rank]).toBeLessThanOrEqual(
-          RANK_VALUE[hand[i - 1].rank],
-        )
-      }
-      // First card should be the ace of spades (highest rank + highest suit)
-      expect(hand[0].id).toBe('AS')
-      // Last card should be 2S (lowest rank in MOCK_HAND)
-      expect(hand[hand.length - 1].id).toBe('2S')
+    act(() => result.current.swapCards(DEALT[0].id, 'XX'))
+    expect(result.current.group1).toBe(before)
+  })
+
+  it('sortRows sorts inside each row without moving cards between rows', () => {
+    const { result } = renderHook(() => useArrangement(DEALT))
+
+    act(() => result.current.sortRows())
+
+    expect(result.current.group1).toEqual(sortCards(DEALT.slice(0, 5)))
+    expect(result.current.group2).toEqual(sortCards(DEALT.slice(5, 10)))
+    expect(result.current.group3).toEqual(sortCards(DEALT.slice(10, 13)))
+  })
+
+  it('applyArrangement replaces the rows with the same 13 cards', () => {
+    const { result } = renderHook(() => useArrangement(DEALT))
+    const target = {
+      group1: MOCK_HAND.slice(0, 5),
+      group2: MOCK_HAND.slice(5, 10),
+      group3: MOCK_HAND.slice(10, 13),
+    }
+
+    act(() => result.current.applyArrangement(target))
+
+    expect(ids(result.current.group1)).toEqual(ids(target.group1))
+    expect(ids(result.current.group2)).toEqual(ids(target.group2))
+    expect(ids(result.current.group3)).toEqual(ids(target.group3))
+  })
+
+  it('applyArrangement ignores a foreign card, a duplicate card, or wrong row sizes', () => {
+    const { result } = renderHook(() => useArrangement(DEALT))
+    const before = result.current.group1
+    const foreign = { id: 'AH', rank: 'A', suit: 'H' } as Card
+
+    act(() => result.current.applyArrangement({
+      group1: [...MOCK_HAND.slice(0, 4), foreign],
+      group2: MOCK_HAND.slice(5, 10),
+      group3: MOCK_HAND.slice(10, 13),
+    }))
+    act(() => result.current.applyArrangement({
+      group1: [...MOCK_HAND.slice(0, 4), MOCK_HAND[5]],
+      group2: MOCK_HAND.slice(5, 10),
+      group3: MOCK_HAND.slice(10, 13),
+    }))
+    act(() => result.current.applyArrangement({
+      group1: MOCK_HAND.slice(0, 6),
+      group2: MOCK_HAND.slice(6, 10),
+      group3: MOCK_HAND.slice(10, 13),
+    }))
+
+    expect(result.current.group1).toBe(before)
+  })
+
+  it('labels each row with its hand name', () => {
+    const cards = hand('AS AH AD 9C 9S KS KH 7D 6C 2D QS QH 3C')
+    const { result } = renderHook(() => useArrangement(cards))
+
+    expect(result.current.labels).toEqual({
+      group1: 'Full House',
+      group2: 'One Pair',
+      group3: 'One Pair',
     })
+  })
 
-    it('does not affect cards already in groups', () => {
-      const { result } = renderHook(() => useArrangement(MOCK_HAND))
+  it('shows no labels when showHandStrength is off', () => {
+    const { result } = renderHook(() => useArrangement(DEALT, { showHandStrength: false }))
 
-      // Move some cards to groups
-      act(() => result.current.assignToGroup('group1', MOCK_HAND[2])) // QD
-      act(() => result.current.assignToGroup('group3', MOCK_HAND[5])) // 9H
+    expect(result.current.labels).toEqual({ group1: null, group2: null, group3: null })
+  })
 
-      act(() => result.current.sortHand())
+  it('warns about a foul when Middle is clearly stronger than Back', () => {
+    const cards = hand('AS KH 9D 7C 3S QS QH QD 5C 2D JS TH 4C')
+    const { result } = renderHook(() => useArrangement(cards))
 
-      expect(result.current.group1).toEqual([MOCK_HAND[2]])
-      expect(result.current.group3).toEqual([MOCK_HAND[5]])
-    })
+    expect(result.current.hasFoulWarning).toBe(true)
 
-    it('sorts only the remaining cards when some are in groups', () => {
-      const { result } = renderHook(() => useArrangement(MOCK_HAND))
+    // Move two queens into Back: Back becomes a pair, Middle a high card.
+    act(() => result.current.swapCards('9D', 'QS'))
+    act(() => result.current.swapCards('7C', 'QH'))
 
-      // Remove first three cards to groups, leaving 10 in hand
-      act(() => result.current.assignToGroup('group1', MOCK_HAND[0])) // AS
-      act(() => result.current.assignToGroup('group1', MOCK_HAND[1])) // KH
-      act(() => result.current.assignToGroup('group1', MOCK_HAND[2])) // QD
+    expect(result.current.labels.group1).toBe('One Pair')
+    expect(result.current.labels.group2).toBe('High Card')
+    expect(result.current.hasFoulWarning).toBe(false)
+  })
 
-      act(() => result.current.sortHand())
+  it('derives the instant-win kind of the board', () => {
+    const threeFlushes = hand('JS 9S 6S 4S 2S AH QH 8H 5H 3H KD TD 9D')
+    const { result } = renderHook(() => useArrangement(threeFlushes))
 
-      const { hand } = result.current
-      expect(hand).toHaveLength(10)
-      // Hand should start with the highest remaining card (JC at index 3)
-      expect(hand[0].id).toBe('JC')
-    })
+    expect(result.current.instantWin).toBe('three_flushes')
 
-    it('is a no-op when hand is empty (all cards in groups)', () => {
-      const { result } = renderHook(() => useArrangement(MOCK_HAND))
-
-      for (const card of MOCK_HAND.slice(0, 5)) {
-        act(() => result.current.assignToGroup('group1', card))
-      }
-      for (const card of MOCK_HAND.slice(5, 10)) {
-        act(() => result.current.assignToGroup('group2', card))
-      }
-      for (const card of MOCK_HAND.slice(10, 13)) {
-        act(() => result.current.assignToGroup('group3', card))
-      }
-
-      act(() => result.current.sortHand())
-
-      expect(result.current.hand).toHaveLength(0)
-    })
-
-    it('clears selectedCardId when sorting', () => {
-      const { result } = renderHook(() => useArrangement(MOCK_HAND))
-
-      act(() => result.current.selectCard(firstCard.id))
-      expect(result.current.selectedCardId).toBe(firstCard.id)
-
-      act(() => result.current.sortHand())
-
-      expect(result.current.selectedCardId).toBeNull()
-    })
+    act(() => result.current.swapCards('JS', 'KD'))
+    expect(result.current.instantWin).toBeNull()
   })
 })

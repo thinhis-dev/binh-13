@@ -14,8 +14,8 @@ export function quickFoulCheck(group1: Card[], group2: Card[]): boolean {
     return true
   }
 
-  const cat1 = estimateCategory(group1)
-  const cat2 = estimateCategory(group2)
+  const cat1 = estimateFiveCardCategory(group1)
+  const cat2 = estimateFiveCardCategory(group2)
 
   if (cat2 > cat1)
     return false // Middle is clearly stronger → foul
@@ -26,8 +26,23 @@ export function quickFoulCheck(group1: Card[], group2: Card[]): boolean {
   return true
 }
 
-/** Rough 5-card category estimator (no pokersolver). */
-function estimateCategory(cards: Card[]): number {
+export const FIVE_CARD_CATEGORY_NAME: Record<number, string> = {
+  0: 'High Card',
+  1: 'One Pair',
+  2: 'Two Pair',
+  3: 'Three of a Kind',
+  4: 'Straight',
+  5: 'Flush',
+  6: 'Full House',
+  7: 'Four of a Kind',
+  8: 'Straight Flush',
+}
+
+/**
+ * Rough 5-card category estimator (no pokersolver), 0 = High Card to 8 = Straight Flush.
+ * Used for the client preview only; the server ranks hands with pokersolver.
+ */
+export function estimateFiveCardCategory(cards: Card[]): number {
   const values = cards.map(c => RANK_VALUE[c.rank] ?? 0)
   const suits = cards.map(c => c.suit)
 

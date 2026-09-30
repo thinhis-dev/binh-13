@@ -2,7 +2,7 @@ import { test as base, expect } from '@playwright/test'
 import { test } from '../fixtures/players'
 import { uniqueName } from '../helpers/names'
 import { createRoom, disableAutoStart, joinRoom, leaveRoom, readyUp, startGameForBoth } from '../helpers/room'
-import { errorBanner, handCards } from '../helpers/selectors'
+import { boardCards, errorBanner } from '../helpers/selectors'
 import { createGuestSession } from '../helpers/session'
 
 test.describe('rooms', () => {
@@ -53,8 +53,8 @@ test.describe('rooms', () => {
   test('auto-start deals both players in', async ({ p1, p2 }) => {
     await startGameForBoth(p1, p2)
 
-    await expect(handCards(p1)).toHaveCount(13)
-    await expect(handCards(p2)).toHaveCount(13)
+    await expect(boardCards(p1)).toHaveCount(13)
+    await expect(boardCards(p2)).toHaveCount(13)
   })
 
   test('manual start requires the owner to click Start Game', async ({ p1, p2 }) => {

@@ -1,12 +1,16 @@
 import type {
   GroupComparison,
   GroupResult,
+  InstantWinKind,
   PlayerArrangement,
   RoundResult,
 } from '@binh-13/shared'
 import {
+  compareInstantWin,
   compareThreeCard,
+  detectInstantWin,
   evaluateThreeCard,
+  INSTANT_WIN_NAME,
   THREE_CARD_CATEGORY_NAME,
 } from '@binh-13/shared'
 import { compareFiveCard, describeFiveCard } from './evaluator'
@@ -16,15 +20,22 @@ import { validateArrangement } from './foulCheck'
  * Compares two full player arrangements and returns the complete round result.
  *
  * Logic:
- * 1. Check both players for fouls.
- * 2. Foul player(s) lose all 3 groups automatically.
- * 3. If neither fouls, compare each group independently.
- * 4. Player who wins 2+ groups wins the round. Ties are possible.
+ * 1. Check both players for an instant-win hand. It overrides the foul check: the stronger
+ *    kind wins all 3 groups, and an equal kind is a draw at 0-0.
+ * 2. Check both players for fouls.
+ * 3. Foul player(s) lose all 3 groups automatically.
+ * 4. If neither fouls, compare each group independently.
+ * 5. Player who wins 2+ groups wins the round. Ties are possible.
  */
 export function compareRound(
   p1: PlayerArrangement,
   p2: PlayerArrangement,
 ): RoundResult {
+  const p1InstantWin = detectInstantWin(p1)
+  const p2InstantWin = detectInstantWin(p2)
+  if (p1InstantWin || p2InstantWin)
+    return buildInstantWinResult(p1, p2, p1InstantWin, p2InstantWin)
+
   const p1Foul = !validateArrangement(p1)
   const p2Foul = !validateArrangement(p2)
 
@@ -33,6 +44,60 @@ export function compareRound(
   }
 
   return buildNormalResult(p1, p2)
+}
+
+function buildInstantWinResult(
+  p1: PlayerArrangement,
+  p2: PlayerArrangement,
+  p1InstantWin: InstantWinKind | null,
+  p2InstantWin: InstantWinKind | null,
+): RoundResult {
+  let groupResult: GroupResult
+  if (p1InstantWin && p2InstantWin)
+    groupResult = toGroupResult(compareInstantWin(p1InstantWin, p2InstantWin))
+  else
+    groupResult = p1InstantWin ? 'p1' : 'p2'
+
+  // A player without a kind keeps a real foul status, so fouls still count in the stats.
+  const p1Foul = !p1InstantWin && !validateArrangement(p1)
+  const p2Foul = !p2InstantWin && !validateArrangement(p2)
+
+  function handName(
+    kind: InstantWinKind | null,
+    foul: boolean,
+    normalName: string,
+  ) {
+    if (kind)
+      return INSTANT_WIN_NAME[kind]
+    return foul ? 'Foul' : normalName
+  }
+
+  function group(
+    p1Name: string,
+    p2Name: string,
+  ): GroupComparison {
+    return {
+      result: groupResult,
+      p1Hand: handName(p1InstantWin, p1Foul, p1Name),
+      p2Hand: handName(p2InstantWin, p2Foul, p2Name),
+      p1Foul,
+      p2Foul,
+    }
+  }
+
+  return {
+    group1: group(describeFiveCard(p1.group1), describeFiveCard(p2.group1)),
+    group2: group(describeFiveCard(p1.group2), describeFiveCard(p2.group2)),
+    group3: group(frontHandName(p1.group3), frontHandName(p2.group3)),
+    winner: groupResult,
+    p1Score: groupResult === 'p1' ? 3 : 0,
+    p2Score: groupResult === 'p2' ? 3 : 0,
+    p1Foul,
+    p2Foul,
+    p1InstantWin,
+    p2InstantWin,
+    arrangements: { p1, p2 },
+  }
 }
 
 function buildFoulResult(
@@ -93,6 +158,8 @@ function buildFoulResult(
     p2Score,
     p1Foul,
     p2Foul,
+    p1InstantWin: null,
+    p2InstantWin: null,
     arrangements: { p1, p2 },
   }
 }
@@ -133,6 +200,8 @@ function buildNormalResult(
     p2Score,
     p1Foul: false,
     p2Foul: false,
+    p1InstantWin: null,
+    p2InstantWin: null,
     arrangements: { p1, p2 },
   }
 }

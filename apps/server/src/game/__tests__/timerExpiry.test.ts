@@ -1,9 +1,10 @@
-import type { Card, PlayerArrangement } from '@binh-13/shared'
+import type { Card, PlayerArrangement, RoundResult } from '@binh-13/shared'
 import type { Server } from 'socket.io'
 import { EVENTS } from '@binh-13/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { autoArrange } from '../autoArrange'
 import { handleTimerExpiry } from '../gameEvents'
-import { endGame, getGame, startGame, submitArrangement } from '../gameManager'
+import { endGame, getGame, saveDraft, startGame, submitArrangement } from '../gameManager'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -52,6 +53,16 @@ function validArrangementFromHand(
     group3: sorted.slice(10, 13) as PlayerArrangement['group3'],
   }
 }
+
+function emittedResult(io: Server): RoundResult {
+  const emitted = (io as unknown as { emitted: Array<{ event: string, payload: unknown }> }).emitted
+  const result = emitted.find(e => e.event === EVENTS.GAME_RESULT)
+  expect(result).toBeDefined()
+  return result!.payload as RoundResult
+}
+
+const FIXED_HAND = 'AS AH AD 9C 9S KS KH 7D 6C 2D QS QH 3C'.split(' ').map(id =>
+  makeCard(id[0] as Card['rank'], id[1] as Card['suit']))
 
 // ─── Mock DB and dependencies ────────────────────────────────────────────────
 
@@ -175,5 +186,74 @@ describe('handleTimerExpiry', () => {
       handleTimerExpiry(io as unknown as Server, ROOM),
     ).not.toThrow()
     expect(io.to).not.toHaveBeenCalled()
+  })
+
+  describe('arrangement at timeout', () => {
+    it('uses a valid draft', () => {
+      const io = makeMockIo()
+      const game = startGame(ROOM, [1, 2], 5)
+      game.hands.set(1, FIXED_HAND)
+      const auto = autoArrange(1, FIXED_HAND)
+      const draft = { ...auto, group1: [...auto.group1].reverse() as PlayerArrangement['group1'] }
+      saveDraft(ROOM, 1, draft)
+
+      handleTimerExpiry(io as unknown as Server, ROOM)
+
+      expect(emittedResult(io).arrangements.p1).toEqual(draft)
+    })
+
+    it('uses the auto-arrangement for a foul draft', () => {
+      const io = makeMockIo()
+      const game = startGame(ROOM, [1, 2], 5)
+      game.hands.set(1, FIXED_HAND)
+      const auto = autoArrange(1, FIXED_HAND)
+      saveDraft(ROOM, 1, {
+        ...auto,
+        group1: auto.group2 as PlayerArrangement['group1'],
+        group2: auto.group1 as PlayerArrangement['group2'],
+      })
+
+      handleTimerExpiry(io as unknown as Server, ROOM)
+
+      expect(emittedResult(io).arrangements.p1).toEqual(auto)
+    })
+
+    it('uses the auto-arrangement without a draft, so no player fouls', () => {
+      const io = makeMockIo()
+      const game = startGame(ROOM, [1, 2], 5)
+      const hand2 = game.hands.get(2)!
+      game.hands.set(1, FIXED_HAND)
+
+      handleTimerExpiry(io as unknown as Server, ROOM)
+
+      const result = emittedResult(io)
+      expect(result.arrangements.p1).toEqual(autoArrange(1, FIXED_HAND))
+      expect(result.arrangements.p2).toEqual(autoArrange(2, hand2))
+      expect(result.p1Foul).toBe(false)
+      expect(result.p2Foul).toBe(false)
+    })
+  })
+
+  it('uses a fouled Three flushes draft, and that player wins by instant win', () => {
+    const io = makeMockIo()
+    const game = startGame(ROOM, [1, 2], 5)
+    const threeFlushes = 'JS 9S 6S 4S 2S AH QH 8H 5H 3H KD TD 9D'.split(' ').map(id =>
+      makeCard(id[0] as Card['rank'], id[1] as Card['suit']))
+    game.hands.set(1, threeFlushes)
+    game.hands.set(2, FIXED_HAND)
+    const draft: PlayerArrangement = {
+      playerId: 1,
+      group1: threeFlushes.slice(0, 5) as PlayerArrangement['group1'],
+      group2: threeFlushes.slice(5, 10) as PlayerArrangement['group2'],
+      group3: threeFlushes.slice(10, 13) as PlayerArrangement['group3'],
+    }
+    saveDraft(ROOM, 1, draft)
+
+    handleTimerExpiry(io as unknown as Server, ROOM)
+
+    const result = emittedResult(io)
+    expect(result.arrangements.p1).toEqual(draft)
+    expect(result.p1InstantWin).toBe('three_flushes')
+    expect(result.winner).toBe('p1')
   })
 })

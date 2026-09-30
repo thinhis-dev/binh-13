@@ -86,6 +86,8 @@ describe('game page', () => {
       p2Score: 0,
       p1Foul: false,
       p2Foul: false,
+      p1InstantWin: null,
+      p2InstantWin: null,
       arrangements: {
         p1: {
           playerId: 1,

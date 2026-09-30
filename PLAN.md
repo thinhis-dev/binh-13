@@ -83,6 +83,23 @@ Player A                              Player B
 └──────────────────────────────────────────────────────┘
 ```
 
+### Deal and Arrangement (Swap Board)
+
+The client deals the 13 cards straight into the three rows. Back gets cards 1 to 5, Middle gets cards 6 to 10, and Front gets cards 11 to 13. The deal order is a device preference, "Sorted deal": raw server order (the default) or sorted by rank. A change to it applies from the next deal.
+
+The player arranges the board only by swaps: a drag of one card onto another card swaps the two cards, inside one row or across rows. No separate hand exists, so the board is always complete. The Sort button sorts the cards inside each row and never moves a card to another row.
+
+### Timeout and Hint
+
+At timeout, the server plays an arrangement for each player who did not submit. It takes the first match of this list:
+
+1. The last draft (`game:draft`) of the player. A draft that fouls counts only with an instant-win kind.
+2. The auto-arrangement of the dealt hand.
+
+The client sends a draft 300 ms after each swap, sort, or hint. A timeout never produces a forfeit. The forfeit arrangement is used only for a surrender.
+
+The auto-arrangement is greedy. Back is the strongest 5-card hand of the 13 cards. Middle is the strongest 5-card hand of the other 8 cards. Front is the last 3 cards. Back is the best hand of all 13 cards, so the auto-arrangement never fouls. The Hint button asks the server for the same auto-arrangement (`game:hint_request`) and fills the board with the reply.
+
 ### Validity Rule (Foul Check)
 
 > **Group 1 (Back) MUST rank ≥ Group 2 (Middle)**  
@@ -147,10 +164,30 @@ Player with **2 or 3 points** wins the round.
 
 **Foul rules (resolved):**
 
-- The UI prevents submitting an invalid arrangement (Submit button disabled, live warning shown)
+- The UI prevents submitting an invalid arrangement (Submit button disabled, live warning shown), unless the board has an instant-win kind
 - If somehow an invalid arrangement reaches the server, the server treats it as a foul: that player loses all 3 groups
 - **If both players foul** → both lose (0 points each for that round)
 - Tiebreaker on equal group score → **draw** (suits are not ranked; suits are equal)
+
+### Instant-Win Hands (Mau binh toi trang)
+
+The server checks both boards for these kinds before the foul check. The list is in rank order, strongest first. The shared `detectInstantWin` in `packages/shared/src/instantWin.ts` does the check for the client preview and the server result.
+
+| Kind              | Name                     | Rule                                                                                                          |
+| ----------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `dragon`          | Dragon (Sanh rong)       | 13 different ranks, 2 to A.                                                                                   |
+| `same_color`      | Same color (Dong mau)    | 12 or 13 cards of one color. Red is H and D. Black is S and C.                                                |
+| `six_pairs`       | Six pairs (Luc phe bon)  | 6 or more pairs in the 13 cards. Trips count as one pair. Four of a kind counts as two pairs.                 |
+| `three_flushes`   | Three flushes (3 thung)  | Back and Middle are flushes, and the 3 Front cards have one suit.                                             |
+| `three_straights` | Three straights (3 sanh) | Back and Middle are straights (A-2-3-4-5 counts). The 3 Front ranks are consecutive (A-2-3 and Q-K-A count). |
+
+A straight flush counts as a flush and as a straight for these rules.
+
+- One player has a kind: that player wins 3-0, and every group goes to that player.
+- Both players have a kind: the stronger kind wins 3-0. An equal kind is a draw at 0-0.
+- An instant win overrides a foul. The instant winner has `p1Foul`/`p2Foul` false. With the room setting `allowFoul` off, the server still accepts a foul board that has a kind.
+- A surrender beats an instant win.
+- Stats count an instant win as a sweep, because the score is 3-0.
 
 ---
 
@@ -501,19 +538,18 @@ function Card({ rank, suit, faceDown = false }: CardProps) {
 
 [dnd-kit](https://dndkit.com) — accessible, touch-friendly, no dependency on HTML5 DnD API.
 
+Each board card is a draggable and a droppable at the same time. A drop of card A on card B swaps them (`swapCards` in `apps/web/src/hooks/useArrangement.ts`):
+
 ```tsx
-// User drags a card from hand → drops into Group 1 slot
-<DndContext onDragEnd={handleDragEnd}>
-  <Hand cards={unassignedCards} />
-  {' '}
-  {/* draggable source */}
-  <GroupSlot group={1} maxCards={5} />
-  {' '}
-  {/* droppable target */}
-  <GroupSlot group={2} maxCards={5} />
-  <GroupSlot group={3} maxCards={3} />
+// apps/web/src/components/game/GameBoard.tsx (simplified)
+<DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+  <GroupPanel group1={group1} group2={group2} group3={group3} labels={labels} />
+  {/* GroupPanel renders three GroupRows: Front, Middle, Back. */}
+  {/* Each card: <Card dragSource={row} dropTarget /> */}
 </DndContext>
 ```
+
+The keyboard sensor uses `cardKeyboardCoordinates` (`apps/web/src/lib/dndKeyboard.ts`). Space picks a card up, each arrow key jumps to the next card in that direction, Space drops, and Escape cancels.
 
 ### Live Hand Strength Preview
 
@@ -526,31 +562,31 @@ Group 3: [ 7♠ ][ 7♥ ][ 2♣ ]           →  "One Pair ✓"
                                               [Group 1 ≥ Group 2 ✓]
 ```
 
-The foul check runs live — if the arrangement is invalid, the Submit button is disabled and shows "⚠ Group 2 cannot be stronger than Group 1".
+The foul check runs live. If the arrangement is invalid, the Submit button is disabled and a "Possible foul" warning shows. A board with an instant-win kind shows a badge, and its Submit button stays enabled, because the instant win overrides the foul.
+
+With the room setting `showHandStrength` on, each row shows its hand name. Back and Middle use the shared rough estimate `estimateFiveCardCategory`. Front uses `evaluateThreeCard`.
 
 ### Game Board Layout
 
+The board is a pyramid: Front at the top, then Middle, then Back. Each row stays on one line. On narrow screens the cards overlap.
+
 ```
 ┌──────────────────────────────────────────────┐
-│ Opponent: "Player B"  ⏱ 0:42                │
+│ Opponent [■■■■■■■■■■■■■]  (•) Sorted deal  ⏱ 42s │
 ├──────────────────────────────────────────────┤
-│ [■■■■■] Group1   [■■■■■] Group2   [■■■] G3  │ ← opponent (face down)
-├──────────────────────────────────────────────┤
+│   Drag a card onto another card to swap them.│
+│        [Instant win: Dragon (Sanh rong)]     │ ← only for a kind
 │                                              │
-│  Drop Zone 1 (5)    Drop Zone 2 (5)         │
-│  [    ][    ][    ][    ][    ]              │
-│  [    ][    ][    ][    ][    ]              │
-│  Drop Zone 3 (3)                            │
-│  [    ][    ][    ]                         │
+│          Front (3)  One Pair                 │
+│           [7♠][7♥][2♣]                       │
+│          Middle (5)  Two Pair                │
+│        [Q♥][Q♦][9♠][9♥][3♣]                  │
+│          Back (5)  Full House                │
+│        [A♠][A♥][A♦][K♣][K♠]                  │
 │                                              │
-│ "Group 1: Full House ✓"                     │
-│ "Group 2: Two Pair ✓"    "Group 1 ≥ Group 2 ✓" │
-│ "Group 3: High Card"                        │
+│              [Sort] [Hint]                   │
 ├──────────────────────────────────────────────┤
-│ Your hand (remaining unassigned cards):      │
-│ [2♠][7♥][A♦][K♣][Q♠][J♥][T♦][9♣][8♠]...  │
-├──────────────────────────────────────────────┤
-│           [Submit Arrangement]               │
+│      [Submit Arrangement]  [Surrender]       │
 └──────────────────────────────────────────────┘
 ```
 
@@ -652,10 +688,14 @@ interface RoundResult {
   p2Score: number
   p1Foul: boolean
   p2Foul: boolean
+  p1InstantWin: InstantWinKind | null // null for a surrender
+  p2InstantWin: InstantWinKind | null
   arrangements: {
     p1: PlayerArrangement
     p2: PlayerArrangement
   }
+  surrendered?: boolean
+  surrenderedBy?: number
 }
 
 // Accumulates across rounds for multi-round modes
@@ -731,6 +771,8 @@ CREATE TABLE arrangements (
 | `room:join`      | `{ code: string, token: string }`                   | Join existing room           |
 | `room:rejoin`    | `{ code: string, token: string }`                   | Reconnect after disconnect   |
 | `game:submit`    | `{ arrangement: PlayerArrangement, token: string }` | Submit final arrangement     |
+| `game:draft`     | `{ playerId, code, arrangement: { group1, group2, group3 } }` | Latest board before submit, sent 300 ms after a change. Same checks as `game:submit`. No reply on success. |
+| `game:hint_request` | `{ playerId, code }`                             | Ask for the server auto-arrangement |
 
 ### Server → Client
 
@@ -743,6 +785,7 @@ CREATE TABLE arrangements (
 | `game:dealt`              | `{ hand: Card[], timerSeconds: number }` | Your 13 private cards + countdown       |
 | `game:timer`              | `{ secondsLeft: number }`                | Countdown tick (every second)           |
 | `game:opponent_submitted` | `{}`                                     | Opponent locked in (cards still hidden) |
+| `game:hint`               | `{ arrangement: { group1, group2, group3 } }` | Auto-arrangement, to the requester only. Computed once for each player in a game. |
 | `game:result`             | `RoundResult`                            | Both submitted — full reveal            |
 | `player:disconnected`     | `{ name: string }`                       | Opponent dropped                        |
 | `player:reconnected`      | `{ name: string }`                       | Opponent back                           |
@@ -766,6 +809,9 @@ export const EVENTS = {
   GAME_DEALT: 'game:dealt',
   GAME_TIMER: 'game:timer',
   GAME_SUBMIT: 'game:submit',
+  GAME_DRAFT: 'game:draft',
+  GAME_HINT_REQUEST: 'game:hint_request',
+  GAME_HINT: 'game:hint',
   GAME_OPPONENT_SUBMITTED: 'game:opponent_submitted',
   GAME_RESULT: 'game:result',
   PLAYER_DISCONNECTED: 'player:disconnected',
@@ -794,7 +840,7 @@ binh-13/
 │   │   │   │   │   ├── CardBack.tsx    # Face-down card
 │   │   │   │   │   └── Hand.tsx        # Draggable card row
 │   │   │   │   ├── game/
-│   │   │   │   │   ├── GroupSlot.tsx   # Droppable group zone
+│   │   │   │   │   ├── GroupRow.tsx    # One row of swap cards
 │   │   │   │   │   ├── HandPreview.tsx # Live "Full House ✓" label
 │   │   │   │   │   ├── Table.tsx       # Full game board layout
 │   │   │   │   │   └── ResultGrid.tsx  # Group-by-group comparison
@@ -976,7 +1022,7 @@ hard_limit = 100
 | 1   | **Suit ranking in tiebreakers?**          | **No suit ranking.** Equal hands → draw.                                                                                                                                      |
 | 2   | **If both players foul?**                 | **Both lose** — 0 points each for that round, `winner: 'draw'`.                                                                                                               |
 | 3   | **Foul handling UX**                      | UI prevents submitting invalid arrangement (Submit button disabled). Server validates as defense-in-depth — invalid submission = foul.                                        |
-| 4   | **Arrangement timer**                     | **60 seconds.** Auto-submit on expiry if arrangement is valid; forfeit (foul) if incomplete.                                                                                  |
+| 4   | **Arrangement timer**                     | **60 seconds.** On expiry, the server plays the last valid draft, else the auto-arrangement. No forfeit on timeout (see § 2 Timeout and Hint).                               |
 | 5   | **Multi-round play?**                     | **Multiple modes:** single, BO3, BO5, custom. Room creator picks mode. `GameMode` + `SessionResult` types added.                                                              |
 | 6   | **Foul cross-check: Group 2 vs Group 3?** | **Group 3 (Front) is independent.** Only `Back ≥ Middle` is enforced. Front can be any valid 3-card hand regardless of Middle's rank.                                         |
 | 7   | **CSS layout direction?**                 | **Desktop-first.** Design for wide screens; add responsive breakpoints for mobile as a secondary concern. Use Tailwind's `md:` / `lg:` prefixes to shrink down, not scale up. |

@@ -205,4 +205,71 @@ describe('compareRound', () => {
     expect(result.p1Score).toBe(2)
     expect(result.p2Score).toBe(1)
   })
+
+  it('a normal result has no instant win', () => {
+    const result = compareRound(P1_STRONG, P2_WEAK)
+    expect(result.p1InstantWin).toBeNull()
+    expect(result.p2InstantWin).toBeNull()
+  })
+})
+
+describe('compareRound — instant wins', () => {
+  const DRAGON = arr(1, ['AS', 'KH', 'QD', 'JC', 'TS'], ['9H', '8D', '7C', '6S', '5H'], ['4D', '3C', '2S'])
+  // Middle (ace-high flush) beats Back (jack-high flush): this board fouls.
+  const FOUL_THREE_FLUSHES = arr(1, ['JS', '9S', '6S', '4S', '2S'], ['AH', 'QH', '8H', '5H', '3H'], ['KD', 'TD', '9D'])
+  const SIX_PAIRS = arr(2, ['AS', 'AH', 'KS', 'KH', 'QC'], ['QD', 'JS', 'JH', '9C', '9D'], ['5S', '5H', '5C'])
+
+  it('one player has a kind: that player wins 3-0 and every group goes to that player', () => {
+    const result = compareRound(DRAGON, P2_STRONG)
+
+    expect(result.winner).toBe('p1')
+    expect(result.p1Score).toBe(3)
+    expect(result.p2Score).toBe(0)
+    expect(result.p1InstantWin).toBe('dragon')
+    expect(result.p2InstantWin).toBeNull()
+    for (const group of [result.group1, result.group2, result.group3]) {
+      expect(group.result).toBe('p1')
+      expect(group.p1Hand).toBe('Dragon (Sanh rong)')
+    }
+    expect(result.group1.p2Hand).toBe('Royal Flush')
+  })
+
+  it('an instant win overrides a foul', () => {
+    const result = compareRound(FOUL_THREE_FLUSHES, { ...P2_WEAK, playerId: 2 })
+
+    expect(result.winner).toBe('p1')
+    expect(result.p1Score).toBe(3)
+    expect(result.p1Foul).toBe(false)
+    expect(result.p1InstantWin).toBe('three_flushes')
+  })
+
+  it('the opponent of an instant winner still shows a foul', () => {
+    const p2Foul = arr(2, ['2S', '3H', '4D', '6C', '8S'], ['KS', 'KH', 'QS', 'QH', 'JC'], ['3S', '4D', '5C'])
+    const result = compareRound(DRAGON, p2Foul)
+
+    expect(result.winner).toBe('p1')
+    expect(result.p2Foul).toBe(true)
+    expect(result.group1.p2Hand).toBe('Foul')
+  })
+
+  it('both players have a kind: the stronger kind wins 3-0', () => {
+    const result = compareRound({ ...SIX_PAIRS, playerId: 1 }, { ...DRAGON, playerId: 2 })
+
+    expect(result.winner).toBe('p2')
+    expect(result.p1Score).toBe(0)
+    expect(result.p2Score).toBe(3)
+    expect(result.p1InstantWin).toBe('six_pairs')
+    expect(result.p2InstantWin).toBe('dragon')
+    expect(result.group2.p1Hand).toBe('Six pairs (Luc phe bon)')
+    expect(result.group2.p2Hand).toBe('Dragon (Sanh rong)')
+  })
+
+  it('both players have the same kind: a draw at 0-0', () => {
+    const result = compareRound({ ...SIX_PAIRS, playerId: 1 }, SIX_PAIRS)
+
+    expect(result.winner).toBe('draw')
+    expect(result.p1Score).toBe(0)
+    expect(result.p2Score).toBe(0)
+    expect(result.group1.result).toBe('draw')
+  })
 })

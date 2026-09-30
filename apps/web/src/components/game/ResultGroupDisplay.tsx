@@ -1,5 +1,6 @@
 import type { Card, GroupComparison } from '@binh-13/shared'
 import { getHighlightedCardIds } from '@binh-13/shared'
+import { CardBack } from '@/components/card/CardBack'
 import { ResultCardRow } from './ResultCardRow'
 
 interface ResultGroupDisplayProps {
@@ -8,6 +9,18 @@ interface ResultGroupDisplayProps {
   myCards: Card[]
   opponentCards: Card[]
   mySide: 'p1' | 'p2'
+  /** Before the row is revealed, both players' cards show as card backs, without results. */
+  revealed?: boolean
+}
+
+function FaceDownRow({ count }: { count: number }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {Array.from({ length: count }, (_, index) => (
+        <CardBack key={`back-${index}`} size="sm" />
+      ))}
+    </div>
+  )
 }
 
 function groupIcon(
@@ -27,6 +40,7 @@ export function ResultGroupDisplay({
   myCards,
   opponentCards,
   mySide,
+  revealed = true,
 }: ResultGroupDisplayProps) {
   const { symbol, color, label } = groupIcon(comparison, mySide)
 
@@ -55,25 +69,33 @@ export function ResultGroupDisplay({
     <section className="rounded border px-3 py-2 space-y-2">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <span aria-label={label} className={`font-bold ${color}`}>
-          {symbol}
-        </span>
+        {revealed && (
+          <span aria-label={label} className={`font-bold ${color}`}>
+            {symbol}
+          </span>
+        )}
         <span className="text-sm font-semibold">{groupLabel}</span>
-        <div className="ml-auto text-right text-xs text-muted-foreground">
-          <span>{myHand}</span>
-          <span className="mx-1">vs</span>
-          <span>{opponentHand}</span>
-        </div>
+        {revealed && (
+          <div className="ml-auto text-right text-xs text-muted-foreground">
+            <span>{myHand}</span>
+            <span className="mx-1">vs</span>
+            <span>{opponentHand}</span>
+          </div>
+        )}
       </div>
 
       {/* My cards */}
       <div>
         <p className="mb-1 text-xs font-medium text-muted-foreground">You</p>
-        <ResultCardRow
-          cards={myCards}
-          highlightedIds={myHighlightedIds}
-          outcome={myOutcome}
-        />
+        {revealed
+          ? (
+              <ResultCardRow
+                cards={myCards}
+                highlightedIds={myHighlightedIds}
+                outcome={myOutcome}
+              />
+            )
+          : <FaceDownRow count={myCards.length} />}
       </div>
 
       {/* Opponent's cards */}
@@ -81,11 +103,15 @@ export function ResultGroupDisplay({
         <p className="mb-1 text-xs font-medium text-muted-foreground">
           Opponent
         </p>
-        <ResultCardRow
-          cards={opponentCards}
-          highlightedIds={opponentHighlightedIds}
-          outcome={opponentOutcome}
-        />
+        {revealed
+          ? (
+              <ResultCardRow
+                cards={opponentCards}
+                highlightedIds={opponentHighlightedIds}
+                outcome={opponentOutcome}
+              />
+            )
+          : <FaceDownRow count={opponentCards.length} />}
       </div>
     </section>
   )

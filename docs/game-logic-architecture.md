@@ -571,14 +571,14 @@ const gameSubmitSchema = z.object({
 
 ```
 When timer reaches 0:
-  For each player who hasn't submitted:
-    → Mark as FOUL (didn't submit in time)
-    → Create a "foul arrangement" with their dealt cards split arbitrarily
+  For each player who has not submitted (arrangementAtTimeout in gameManager.ts):
+    → Use the last draft (game:draft), if it does not foul or has an instant-win kind
+    → Else use the auto-arrangement of the dealt hand (autoArrange.ts), which never fouls
 
   Resolve the round as if both had submitted
-    → Foul player loses all 3 groups
-    → If both timed out → both foul → draw
 ```
+
+A timeout never produces a forfeit. The forfeit arrangement is used only for a surrender. See PLAN.md § 2 "Timeout and Hint".
 
 ### Visual urgency
 

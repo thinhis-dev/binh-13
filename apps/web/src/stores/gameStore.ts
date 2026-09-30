@@ -1,4 +1,5 @@
 import type {
+  BoardArrangement,
   Card,
   PlayerArrangement,
   Room,
@@ -12,6 +13,8 @@ interface GameState {
   hand: Card[]
   arrangement: Partial<PlayerArrangement> | null
   result: RoundResult | null
+  /** The last game:hint reply. The game board applies it once, then clears it. */
+  hint: BoardArrangement | null
   settings: RoomSettings | null
   timerSeconds: number
   timerExpired: boolean
@@ -24,6 +27,7 @@ interface GameState {
   setHand: (hand: Card[]) => void
   setArrangement: (arrangement: Partial<PlayerArrangement>) => void
   setResult: (result: RoundResult) => void
+  setHint: (hint: BoardArrangement | null) => void
   setSettings: (settings: RoomSettings) => void
   setTimer: (seconds: number) => void
   setTimerExpired: (v: boolean) => void
@@ -40,6 +44,7 @@ const initialState = {
   hand: [],
   arrangement: null,
   result: null,
+  hint: null as BoardArrangement | null,
   settings: null,
   timerSeconds: 0,
   timerExpired: false,
@@ -60,6 +65,7 @@ export const useGameStore = create<GameState>()(set => ({
   setHand: hand => set({ hand }),
   setArrangement: arrangement => set({ arrangement }),
   setResult: result => set({ result }),
+  setHint: hint => set({ hint }),
   setSettings: settings => set({ settings }),
   setTimer: timerSeconds => set({ timerSeconds }),
   setTimerExpired: timerExpired => set({ timerExpired }),

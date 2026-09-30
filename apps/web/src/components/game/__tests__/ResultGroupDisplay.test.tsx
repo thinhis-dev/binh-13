@@ -182,4 +182,23 @@ describe('resultGroupDisplay', () => {
       expect(card).toHaveClass('w-16')
     }
   })
+
+  it('shows card backs and no hand names or icon before the row is revealed', () => {
+    render(
+      <ResultGroupDisplay
+        groupLabel="Back (5)"
+        comparison={makeComparison()}
+        myCards={fiveCards}
+        opponentCards={opponentFiveCards}
+        mySide="p1"
+        revealed={false}
+      />,
+    )
+
+    expect(screen.getByText('Back (5)')).toBeInTheDocument()
+    expect(screen.getAllByTestId('card-back')).toHaveLength(10)
+    expect(screen.queryByTestId('playing-card')).toBeNull()
+    expect(screen.queryByText('Royal Flush')).toBeNull()
+    expect(screen.queryByLabelText('Won')).toBeNull()
+  })
 })

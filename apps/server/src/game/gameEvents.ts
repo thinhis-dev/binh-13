@@ -1,6 +1,7 @@
 import type { Card, PlayerArrangement } from '@binh-13/shared'
-import type { Server } from 'socket.io'
-import { EVENTS, GAME_TIMER_SECONDS, RANK_VALUE } from '@binh-13/shared'
+import type { Server, Socket } from 'socket.io'
+import type { GameInstance } from './gameManager'
+import { detectInstantWin, EVENTS, GAME_TIMER_SECONDS, RANK_VALUE } from '@binh-13/shared'
 import { z } from 'zod'
 import { requireIdentity } from '../auth/identity'
 import { getDb } from '../db'
@@ -12,9 +13,12 @@ import { compareFiveCard } from './evaluator'
 import { validateArrangement } from './foulCheck'
 import {
   allSubmitted,
+  arrangementAtTimeout,
   endGame,
+  getAutoArrangement,
   getGame,
   getPlayerIds,
+  saveDraft,
   startGame,
   submitArrangement,
 } from './gameManager'
@@ -61,6 +65,11 @@ const gameSubmitSchema = z.object({
 })
 
 const gameSurrenderSchema = z.object({
+  playerId: z.number().int().positive(),
+  code: roomCodeSchema,
+})
+
+const gameHintRequestSchema = z.object({
   playerId: z.number().int().positive(),
   code: roomCodeSchema,
 })
@@ -188,7 +197,10 @@ function startTimer(io: Server, roomCode: string): void {
   }, 1000)
 }
 
-/** Handles timer expiry: auto-forfeits non-submitters and resolves the round. */
+/**
+ * Handles timer expiry: each player who did not submit plays the last usable draft, else the
+ * auto-arrangement (see arrangementAtTimeout). Then it resolves the round.
+ */
 export function handleTimerExpiry(io: Server, roomCode: string): void {
   const game = getGame(roomCode)
   if (!game || game.status !== 'arranging')
@@ -199,12 +211,8 @@ export function handleTimerExpiry(io: Server, roomCode: string): void {
     return
   const [p1Id, p2Id] = ids
 
-  const p1Sub
-    = game.submissions.get(p1Id)
-      ?? createForfeitArrangement(p1Id, game.hands.get(p1Id)!)
-  const p2Sub
-    = game.submissions.get(p2Id)
-      ?? createForfeitArrangement(p2Id, game.hands.get(p2Id)!)
+  const p1Sub = arrangementAtTimeout(roomCode, p1Id)!
+  const p2Sub = arrangementAtTimeout(roomCode, p2Id)!
 
   log.info({ roomCode }, 'Timer expired — auto-resolving round')
   resolveRound(io, roomCode, p1Sub, p2Sub)
@@ -277,76 +285,107 @@ export function triggerGameStart(
   log.info({ roomCode, p1Id, p2Id }, 'Game started — cards dealt')
 }
 
-/** Registers the game:submit handler for new socket connections. */
+/**
+ * Checks that the player may act in the game now: identity, session, room membership, a game
+ * in the arranging phase, and no submission yet. Emits an error and returns null otherwise.
+ */
+function checkActivePlayer(
+  socket: Socket,
+  playerId: number,
+  code: string,
+): { game: GameInstance, dealtHand: Card[] } | null {
+  if (!requireIdentity(socket, playerId))
+    return null
+
+  const session = getSession(playerId)
+  if (!session) {
+    socket.emit(EVENTS.ERROR, { message: 'Session not found' })
+    return null
+  }
+
+  const room = getRoom(code)
+  if (!room) {
+    socket.emit(EVENTS.ERROR, { message: 'Room not found' })
+    return null
+  }
+
+  if (!room.players.some(p => p.playerId === playerId)) {
+    socket.emit(EVENTS.ERROR, { message: 'Not in this room' })
+    return null
+  }
+
+  const game = getGame(code)
+  if (!game || game.status !== 'arranging') {
+    socket.emit(EVENTS.ERROR, { message: 'Game not in progress' })
+    return null
+  }
+
+  if (game.submissions.has(playerId)) {
+    socket.emit(EVENTS.ERROR, { message: 'Already submitted' })
+    return null
+  }
+
+  const dealtHand = game.hands.get(playerId)
+  if (!dealtHand) {
+    socket.emit(EVENTS.ERROR, { message: 'No hand found for player' })
+    return null
+  }
+
+  return { game, dealtHand }
+}
+
+/**
+ * The shared checks of game:submit and game:draft, which carry the same payload: the schema, checkActivePlayer,
+ * and the cards (the 13 dealt cards, no duplicates). Emits an error and returns null otherwise.
+ */
+function checkArrangementRequest(socket: Socket, payload: unknown) {
+  const parsed = gameSubmitSchema.safeParse(payload)
+  if (!parsed.success) {
+    socket.emit(EVENTS.ERROR, {
+      message: parsed.error.issues[0]?.message ?? 'Invalid payload',
+    })
+    return null
+  }
+
+  const { playerId, code, arrangement } = parsed.data
+  const active = checkActivePlayer(socket, playerId, code)
+  if (!active)
+    return null
+
+  if (!validateSubmittedCards(active.dealtHand, arrangement)) {
+    log.warn(
+      { playerId, code },
+      'Card validation failed — possible cheating',
+    )
+    socket.emit(EVENTS.ERROR, { message: 'Invalid cards in arrangement' })
+    return null
+  }
+
+  const fullArrangement: PlayerArrangement = {
+    playerId,
+    group1: arrangement.group1 as PlayerArrangement['group1'],
+    group2: arrangement.group2 as PlayerArrangement['group2'],
+    group3: arrangement.group3 as PlayerArrangement['group3'],
+  }
+  return { playerId, code, game: active.game, arrangement: fullArrangement }
+}
+
+/** Registers the game:submit, game:draft, game:hint_request, and game:surrender handlers. */
 export function registerGameEvents(io: Server): void {
   io.on('connection', (socket) => {
     socket.on(EVENTS.GAME_SUBMIT, (payload) => {
-      const parsed = gameSubmitSchema.safeParse(payload)
-      if (!parsed.success) {
-        socket.emit(EVENTS.ERROR, {
-          message: parsed.error.issues[0]?.message ?? 'Invalid payload',
-        })
+      const request = checkArrangementRequest(socket, payload)
+      if (!request)
         return
-      }
+      const { playerId, code, game, arrangement: fullArrangement } = request
 
-      const { playerId, code, arrangement } = parsed.data
-
-      if (!requireIdentity(socket, playerId))
-        return
-
-      const session = getSession(playerId)
-      if (!session) {
-        socket.emit(EVENTS.ERROR, { message: 'Session not found' })
-        return
-      }
-
-      const room = getRoom(code)
-      if (!room) {
-        socket.emit(EVENTS.ERROR, { message: 'Room not found' })
-        return
-      }
-
-      if (!room.players.some(p => p.playerId === playerId)) {
-        socket.emit(EVENTS.ERROR, { message: 'Not in this room' })
-        return
-      }
-
-      const game = getGame(code)
-      if (!game || game.status !== 'arranging') {
-        socket.emit(EVENTS.ERROR, { message: 'Game not in progress' })
-        return
-      }
-
-      if (game.submissions.has(playerId)) {
-        socket.emit(EVENTS.ERROR, { message: 'Already submitted' })
-        return
-      }
-
-      const dealtHand = game.hands.get(playerId)
-      if (!dealtHand) {
-        socket.emit(EVENTS.ERROR, { message: 'No hand found for player' })
-        return
-      }
-
-      if (!validateSubmittedCards(dealtHand, arrangement)) {
-        log.warn(
-          { playerId, code },
-          'Card validation failed — possible cheating',
-        )
-        socket.emit(EVENTS.ERROR, { message: 'Invalid cards in arrangement' })
-        return
-      }
-
-      const fullArrangement: PlayerArrangement = {
-        playerId,
-        group1: arrangement.group1 as PlayerArrangement['group1'],
-        group2: arrangement.group2 as PlayerArrangement['group2'],
-        group3: arrangement.group3 as PlayerArrangement['group3'],
-      }
-
-      // Check allowFoul room setting
+      // Check allowFoul room setting. An instant win overrides a foul, so it is always accepted.
       const roomSettings = getRoomSettings(code)
-      if (!roomSettings.allowFoul && !validateArrangement(fullArrangement)) {
+      if (
+        !roomSettings.allowFoul
+        && !validateArrangement(fullArrangement)
+        && !detectInstantWin(fullArrangement)
+      ) {
         log.warn({ playerId, code }, 'Foul arrangement rejected by room settings')
         socket.emit(EVENTS.ERROR, { message: 'Foul arrangements are not allowed in this room' })
         return
@@ -380,6 +419,37 @@ export function registerGameEvents(io: Server): void {
           game.submissions.get(p2Id)!,
         )
       }
+    })
+
+    socket.on(EVENTS.GAME_DRAFT, (payload) => {
+      const request = checkArrangementRequest(socket, payload)
+      if (!request)
+        return
+      // No reply on success: the draft only matters if the timer expires.
+      if (!saveDraft(request.code, request.playerId, request.arrangement))
+        socket.emit(EVENTS.ERROR, { message: 'Draft rejected' })
+    })
+
+    socket.on(EVENTS.GAME_HINT_REQUEST, (payload) => {
+      const parsed = gameHintRequestSchema.safeParse(payload)
+      if (!parsed.success) {
+        socket.emit(EVENTS.ERROR, {
+          message: parsed.error.issues[0]?.message ?? 'Invalid payload',
+        })
+        return
+      }
+
+      const { playerId, code } = parsed.data
+      if (!checkActivePlayer(socket, playerId, code))
+        return
+
+      const hint = getAutoArrangement(code, playerId)
+      if (!hint)
+        return
+      // Only the requester gets the hint: it reveals their own hand only.
+      socket.emit(EVENTS.GAME_HINT, {
+        arrangement: { group1: hint.group1, group2: hint.group2, group3: hint.group3 },
+      })
     })
 
     socket.on(EVENTS.GAME_SURRENDER, (payload) => {
@@ -489,6 +559,9 @@ export function handleSurrender(
     p2Score: isP1 ? 3 : 0,
     p1Foul: false,
     p2Foul: false,
+    // Surrender beats an instant win, so the result names none.
+    p1InstantWin: null,
+    p2InstantWin: null,
     arrangements: {
       p1: p1Arr,
       p2: p2Arr,

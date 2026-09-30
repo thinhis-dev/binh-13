@@ -1,13 +1,46 @@
-import type { PlayerArrangement } from '@binh-13/shared'
+import type { Card, PlayerArrangement } from '@binh-13/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { autoArrange } from '../autoArrange'
 import {
   allSubmitted,
+  arrangementAtTimeout,
   endGame,
+  getAutoArrangement,
   getGame,
   getPlayerIds,
+  saveDraft,
   startGame,
   submitArrangement,
 } from '../gameManager'
+
+vi.mock('../autoArrange', async importOriginal => ({
+  autoArrange: vi.fn((await importOriginal<typeof import('../autoArrange')>()).autoArrange),
+}))
+
+const FIXED_HAND = 'AS AH AD 9C 9S KS KH 7D 6C 2D QS QH 3C'.split(' ').map(id => ({
+  id,
+  rank: id[0] as Card['rank'],
+  suit: id[1] as Card['suit'],
+}))
+
+/** Starts a game in which player 1 holds FIXED_HAND. */
+function startFixedGame() {
+  const game = startGame('TESTAA', [1, 2])
+  game.hands.set(1, FIXED_HAND)
+  return game
+}
+
+/** A valid board that differs from the auto-arrangement: Back in reverse order. */
+function validDraft(): PlayerArrangement {
+  const auto = autoArrange(1, FIXED_HAND)
+  return { ...auto, group1: [...auto.group1].reverse() as PlayerArrangement['group1'] }
+}
+
+/** Back and Middle of the auto-arrangement swapped: Middle is stronger, so it fouls. */
+function foulDraft(): PlayerArrangement {
+  const auto = autoArrange(1, FIXED_HAND)
+  return { ...auto, group1: auto.group2 as PlayerArrangement['group1'], group2: auto.group1 as PlayerArrangement['group2'] }
+}
 
 function makeDummyArrangement(playerId: number): PlayerArrangement {
   // Minimal arrangement for testing — real card validation is in gameEvents
@@ -150,6 +183,69 @@ describe('gameManager', () => {
 
     it('returns undefined for non-existent game', () => {
       expect(getPlayerIds('NOROOM')).toBeUndefined()
+    })
+  })
+
+  describe('saveDraft', () => {
+    it('stores the latest draft of a player who did not submit', () => {
+      startFixedGame()
+
+      expect(saveDraft(ROOM, 1, foulDraft())).toBe(true)
+      expect(saveDraft(ROOM, 1, validDraft())).toBe(true)
+      expect(getGame(ROOM)!.drafts.get(1)).toEqual(validDraft())
+    })
+
+    it('rejects a draft after submit, or without a game in progress', () => {
+      startFixedGame()
+      submitArrangement(ROOM, 1, validDraft())
+
+      expect(saveDraft(ROOM, 1, foulDraft())).toBe(false)
+      expect(getGame(ROOM)!.drafts.has(1)).toBe(false)
+      expect(saveDraft('NOROOM', 1, validDraft())).toBe(false)
+    })
+  })
+
+  describe('getAutoArrangement', () => {
+    it('computes the auto-arrangement once for each player and caches it', () => {
+      startFixedGame()
+      vi.mocked(autoArrange).mockClear()
+
+      const first = getAutoArrangement(ROOM, 1)
+      const second = getAutoArrangement(ROOM, 1)
+
+      expect(second).toBe(first)
+      expect(autoArrange).toHaveBeenCalledTimes(1)
+      expect(getAutoArrangement('NOROOM', 1)).toBeUndefined()
+    })
+  })
+
+  describe('arrangementAtTimeout', () => {
+    it('uses the submission first', () => {
+      startFixedGame()
+      saveDraft(ROOM, 1, foulDraft())
+      submitArrangement(ROOM, 1, validDraft())
+
+      expect(arrangementAtTimeout(ROOM, 1)).toEqual(validDraft())
+    })
+
+    it('uses a valid draft', () => {
+      startFixedGame()
+      saveDraft(ROOM, 1, validDraft())
+
+      expect(arrangementAtTimeout(ROOM, 1)).toEqual(validDraft())
+    })
+
+    it('uses the auto-arrangement for a foul draft', () => {
+      startFixedGame()
+      saveDraft(ROOM, 1, foulDraft())
+
+      expect(arrangementAtTimeout(ROOM, 1)).toEqual(autoArrange(1, FIXED_HAND))
+    })
+
+    it('uses the auto-arrangement without a draft', () => {
+      startFixedGame()
+
+      expect(arrangementAtTimeout(ROOM, 1)).toEqual(autoArrange(1, FIXED_HAND))
     })
   })
 })

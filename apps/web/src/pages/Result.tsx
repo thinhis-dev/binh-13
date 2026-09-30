@@ -1,7 +1,9 @@
+import { INSTANT_WIN_NAME } from '@binh-13/shared'
 import { useCallback, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ResultGroupDisplay } from '@/components/game/ResultGroupDisplay'
 import { Button } from '@/components/ui/button'
+import { useRevealSteps } from '@/hooks/useRevealSteps'
 import { useSocket } from '@/hooks/useSocket'
 import { useGameStore } from '@/stores/gameStore'
 import { useSessionStore } from '@/stores/sessionStore'
@@ -9,6 +11,11 @@ import { useSessionStore } from '@/stores/sessionStore'
 type PlayerSide = 'p1' | 'p2'
 
 const GROUP_LABELS = ['Back (5)', 'Middle (5)', 'Front (3)'] as const
+
+/** The reveal shows Front (index 2) first, then Middle (1), then Back (0). */
+function isGroupRevealed(groupIndex: number, revealedSteps: number) {
+  return revealedSteps >= GROUP_LABELS.length - groupIndex
+}
 
 export default function Result() {
   const navigate = useNavigate()
@@ -23,6 +30,9 @@ export default function Result() {
   const setRematchCancelledReason = useGameStore(s => s.setRematchCancelledReason)
   const { leaveRoom, requestRematch, declineRematch } = useSocket()
   const reset = useGameStore(s => s.reset)
+  // A surrender or an instant win decides the round without the rows, so it shows at once.
+  const showAtOnce = Boolean(result?.surrendered || result?.p1InstantWin || result?.p2InstantWin)
+  const { revealed, done: revealDone, skip: skipReveal } = useRevealSteps(GROUP_LABELS.length, showAtOnce)
 
   const mySide: PlayerSide = useMemo(
     () => (result?.arrangements.p1.playerId === playerId ? 'p1' : 'p2'),
@@ -34,6 +44,9 @@ export default function Result() {
   const isDraw = result?.winner === 'draw'
   const isFoul = mySide === 'p1' ? result?.p1Foul : result?.p2Foul
   const opponentFoul = opponentSide === 'p1' ? result?.p1Foul : result?.p2Foul
+  // Results stored before instant wins existed have no such field, so ?? null.
+  const myInstantWin = (mySide === 'p1' ? result?.p1InstantWin : result?.p2InstantWin) ?? null
+  const opponentInstantWin = (opponentSide === 'p1' ? result?.p1InstantWin : result?.p2InstantWin) ?? null
 
   // When a new game starts after rematch (reset clears result, then GAME_DEALT sets hand),
   // navigate to the game page.
@@ -82,6 +95,15 @@ export default function Result() {
 
   const groups = [result.group1, result.group2, result.group3] as const
 
+  // The running score counts the revealed rows. After the last step it is the final score.
+  const revealedGroups = groups.filter((_, i) => isGroupRevealed(i, revealed))
+  const myScore = revealDone
+    ? (mySide === 'p1' ? result.p1Score : result.p2Score)
+    : revealedGroups.filter(group => group.result === mySide).length
+  const opponentScore = revealDone
+    ? (opponentSide === 'p1' ? result.p1Score : result.p2Score)
+    : revealedGroups.filter(group => group.result === opponentSide).length
+
   const myArrangement = result.arrangements[mySide]
   const opponentArrangement = result.arrangements[opponentSide]
 
@@ -105,57 +127,77 @@ export default function Result() {
 
   return (
     <div data-testid="round-result" className="mx-auto flex min-h-screen w-full max-w-lg flex-col items-center justify-center gap-6 p-4">
-      {/* Winner / Loser banner */}
-      <div className="text-center">
-        {result.surrendered
-          ? (
-              result.surrenderedBy === playerId
+      {/* Winner / Loser banner, after the last reveal step */}
+      {!revealDone && (
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-muted-foreground">Revealing the rows: Front, Middle, Back…</p>
+          <Button size="sm" variant="outline" onClick={skipReveal}>
+            Skip
+          </Button>
+        </div>
+      )}
+      {revealDone && (
+        <div className="text-center">
+          {result.surrendered
+            ? (
+                result.surrenderedBy === playerId
+                  ? (
+                      <h1 className="text-3xl font-bold text-red-500">You Surrendered</h1>
+                    )
+                  : (
+                      <h1 className="text-3xl font-bold text-green-600">
+                        Opponent Surrendered — You Win! 🎉
+                      </h1>
+                    )
+              )
+            : isDraw
+              ? (
+                  <h1 className="text-3xl font-bold text-yellow-600">Draw!</h1>
+                )
+              : didWin
                 ? (
-                    <h1 className="text-3xl font-bold text-red-500">You Surrendered</h1>
+                    <h1 className="text-3xl font-bold text-green-600">You Win! 🎉</h1>
                   )
                 : (
-                    <h1 className="text-3xl font-bold text-green-600">
-                      Opponent Surrendered — You Win! 🎉
-                    </h1>
-                  )
-            )
-          : isDraw
-            ? (
-                <h1 className="text-3xl font-bold text-yellow-600">Draw!</h1>
-              )
-            : didWin
-              ? (
-                  <h1 className="text-3xl font-bold text-green-600">You Win! 🎉</h1>
-                )
-              : (
-                  <h1 className="text-3xl font-bold text-red-500">You Lose</h1>
-                )}
+                    <h1 className="text-3xl font-bold text-red-500">You Lose</h1>
+                  )}
 
-        {isFoul && !result.surrendered && (
-          <p className="mt-1 text-sm text-red-500">
-            Your arrangement fouled (middle stronger than back).
-          </p>
-        )}
-        {opponentFoul && !result.surrendered && (
-          <p className="mt-1 text-sm text-green-600">
-            Opponent fouled — auto-loss for them.
-          </p>
-        )}
-      </div>
+          {myInstantWin && (
+            <p className="mt-1 text-sm font-semibold text-amber-700">
+              {`${INSTANT_WIN_NAME[myInstantWin]}: instant win`}
+            </p>
+          )}
+          {opponentInstantWin && (
+            <p className="mt-1 text-sm font-semibold text-amber-700">
+              {`Opponent ${INSTANT_WIN_NAME[opponentInstantWin]}: instant win`}
+            </p>
+          )}
+          {isFoul && !result.surrendered && (
+            <p className="mt-1 text-sm text-red-500">
+              Your arrangement fouled (middle stronger than back).
+            </p>
+          )}
+          {opponentFoul && !result.surrendered && (
+            <p className="mt-1 text-sm text-green-600">
+              Opponent fouled — auto-loss for them.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Score summary */}
       <div className="flex items-center gap-4 rounded-lg bg-muted/50 px-6 py-3">
         <div className="text-center">
           <p className="text-xs text-muted-foreground">You</p>
-          <p className="text-2xl font-bold">
-            {mySide === 'p1' ? result.p1Score : result.p2Score}
+          <p data-testid="my-score" className="text-2xl font-bold">
+            {myScore}
           </p>
         </div>
         <span className="text-muted-foreground">—</span>
         <div className="text-center">
           <p className="text-xs text-muted-foreground">Opponent</p>
-          <p className="text-2xl font-bold">
-            {opponentSide === 'p1' ? result.p1Score : result.p2Score}
+          <p data-testid="opponent-score" className="text-2xl font-bold">
+            {opponentScore}
           </p>
         </div>
       </div>
@@ -174,6 +216,7 @@ export default function Result() {
               myCards={groupCards[i].myCards}
               opponentCards={groupCards[i].opponentCards}
               mySide={mySide}
+              revealed={isGroupRevealed(i, revealed)}
             />
           ))}
         </div>

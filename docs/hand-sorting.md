@@ -1,37 +1,43 @@
-# Hand Sorting Feature
+# Row Sorting and Deal Order
 
-**Implemented by:** Plan [hand-sorting.md](../plans/hand-sorting.md)
+**Implemented by:** Plan [hand-sorting.md](../plans/hand-sorting.md), changed for the swap board by [plans/260930-1657-mau-binh-swap-board](../plans/260930-1657-mau-binh-swap-board/plan.md)
 
 ---
 
 ## Summary
 
-The hand sorting feature lets a player re-order their remaining hand cards on the game screen. Cards are sorted **descending by rank** (Ace highest, 2 lowest) with a **secondary sort by suit** (Spades > Hearts > Diamonds > Clubs).
+The game screen has no separate hand. The client deals the 13 cards straight into the three rows: Back (cards 1 to 5), Middle (cards 6 to 10), and Front (cards 11 to 13). Two controls change the card order:
 
-Sorting only affects the **hand zone** — cards already placed into the three arrangement groups (Back, Middle, Front) are not affected.
+- The **Sort** button sorts the cards inside each row. Cards never move to another row.
+- The **Sorted deal** switch in the game header is a device preference. It sets the order in which the cards fill the rows at the deal: `raw` (server deal order, the default) or `sorted`. A change applies from the next deal, and the current board does not change.
+
+The sort order is **descending by rank** (Ace highest, 2 lowest), with a **secondary sort by suit** (Spades > Hearts > Diamonds > Clubs).
 
 ---
 
 ## Architecture
 
 ```
-cards.ts              → sortCards()          Pure utility, no side effects
+cards.ts              → sortCards()                   Pure utility, no side effects
+dealOrder.ts          → readDealOrder() / writeDealOrder() / layoutDeal()
     ↓
-useArrangement.ts     → sortHand()          Hook action, updates hand state
+useArrangement.ts     → layoutDeal() at the deal, sortRows() on Sort
     ↓
-HandArea.tsx          → <Sort button>        UI trigger
-    ↓
-GameBoard.tsx         → wires sortHand       Connects hook to component
+GameBoard.tsx         → Sort button, Sorted deal switch
 ```
 
-### Data Flow
+### Data flow of Sort
 
-1. Player clicks **Sort** button in `HandArea`.
-2. `GameBoard` calls `sortHand()` from `useArrangement`.
-3. `sortHand()` calls `sortCards(current.hand)` and replaces `hand` in state.
-4. React re-renders `HandArea` with the sorted order.
+1. The player clicks **Sort**.
+2. `GameBoard` calls `sortRows()` from `useArrangement`.
+3. `sortRows()` calls `sortCards()` on each of `group1`, `group2`, and `group3`.
+4. 300 ms later, `GameBoard` sends the new board as a draft (`game:draft`), so that a timeout can use it.
 
-No network events are involved — sorting is a purely client-side UI convenience.
+### Data flow of the deal order
+
+1. On mount, `GameBoard` reads the preference with `readDealOrder()`.
+2. `useArrangement` lays out the dealt cards with `layoutDeal(cards, order)`.
+3. The switch calls `writeDealOrder()`. The next deal uses the new value.
 
 ---
 
@@ -78,37 +84,35 @@ Pure function. Returns a new sorted array without mutating the input. Uses `toSo
 
 Maps each suit to a numeric value for sort comparison.
 
-### `sortHand(): void`
+### `sortRows(): void`
 
 **Location:** `apps/web/src/hooks/useArrangement.ts` (returned from `useArrangement`)
 
-Sorts the hand cards in-place within state. Also clears `selectedCardId`.
+Sorts the cards inside each row. The set of cards in each row does not change.
+
+### `readDealOrder(): DealOrder` and `writeDealOrder(order): void`
+
+**Location:** `apps/web/src/lib/dealOrder.ts`
+
+Read and write the `binh13.dealOrder` key in `localStorage`. Each call sits in `try/catch`. If storage is empty, holds an unknown value, or is blocked, `readDealOrder()` returns `raw`.
+
+### `layoutDeal(cards, order): BoardRows`
+
+**Location:** `apps/web/src/lib/dealOrder.ts`
+
+Splits the dealt cards 5 / 5 / 3 into `group1`, `group2`, and `group3`. With `sorted`, it sorts all 13 cards with `sortCards()` first.
 
 ---
 
 ## UI Behavior
 
-| State                        | Sort Button               |
-| ---------------------------- | ------------------------- |
-| Hand has cards               | Visible, enabled          |
-| Hand is empty (all assigned) | Hidden                    |
-| Cards in groups              | Not affected by sort      |
-| Card selected                | Selection cleared on sort |
-
-The Sort button is rendered in the `HandArea` header bar, next to the "Hand" title.
+| Control        | Where               | Effect                                                      |
+| -------------- | ------------------- | ----------------------------------------------------------- |
+| Sort           | Below the board     | Sorts each row. Sends a draft 300 ms later.                 |
+| Sorted deal    | Game header (switch) | Stores the preference. Help text: "Applies from the next deal." |
 
 ---
 
 ## Immutability Guarantee
 
-The `sortCards` function uses `Array.prototype.toSorted()` which returns a new array, leaving the original untouched. This is critical for React's state model — we never mutate state directly.
-
-If browser support for `toSorted()` is a concern, the fallback is `[...cards].sort(comparator)`.
-
----
-
-## Relationship to Original Deal Order
-
-The `useArrangement` hook tracks `originalOrder` (the card IDs in deal order) to restore cards to their dealt position when removed from groups. After the player presses Sort, the hand is re-ordered by rank/suit. If a card is later removed from a group, it is inserted back into the hand in **original deal order** (existing behavior) — the player can press Sort again to re-sort.
-
-This is intentional: deal-order restoration after group removal is a separate concern from explicit user-initiated sorting.
+The `sortCards` function uses `Array.prototype.toSorted()` which returns a new array, leaving the original untouched. React state is never mutated directly.

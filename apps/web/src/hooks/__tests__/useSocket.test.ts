@@ -127,6 +127,33 @@ describe('useSocket', () => {
     expect(useGameStore.getState().result).toEqual(resultPayload)
   })
 
+  it('saveDraft() and requestHint() emit their payloads', () => {
+    const { result } = renderHook(() => useSocket())
+    const arrangement = { group1: [], group2: [], group3: [] }
+
+    act(() => {
+      result.current.saveDraft(1, 'ABC123', arrangement)
+      result.current.requestHint(1, 'ABC123')
+    })
+
+    expect(socket.emit).toHaveBeenCalledWith(EVENTS.GAME_DRAFT, { playerId: 1, code: 'ABC123', arrangement })
+    expect(socket.emit).toHaveBeenCalledWith(EVENTS.GAME_HINT_REQUEST, { playerId: 1, code: 'ABC123' })
+  })
+
+  it('stores the arrangement of a GAME_HINT event, and unregisters the listener', () => {
+    const { unmount } = renderHook(() => useSocket())
+    const hintHandler = vi.mocked(socket.on).mock.calls.find(([event]) => event === EVENTS.GAME_HINT)?.[1]
+    const arrangement = { group1: [], group2: [], group3: [] }
+
+    act(() => {
+      hintHandler?.({ arrangement })
+    })
+    expect(useGameStore.getState().hint).toEqual(arrangement)
+
+    unmount()
+    expect(socket.off).toHaveBeenCalledWith(EVENTS.GAME_HINT, hintHandler)
+  })
+
   it('tracks socket connection state from socket events', () => {
     const { result, unmount } = renderHook(() => useSocket())
     const socketOn = vi.mocked(socket.on)

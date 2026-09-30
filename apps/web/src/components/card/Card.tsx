@@ -1,9 +1,9 @@
 import type { Card as CardType } from '@binh-13/shared'
 import type { ReactNode } from 'react'
-import type { DragData, DragSource } from '@/lib/dnd'
-import { useDraggable } from '@dnd-kit/core'
-import { CSS } from '@dnd-kit/utilities'
-import { memo } from 'react'
+import type { GroupKey } from '@/hooks/useArrangement'
+import type { DragData, DropData } from '@/lib/dnd'
+import { useDraggable, useDroppable } from '@dnd-kit/core'
+import { memo, useCallback } from 'react'
 import { RANK_LABEL, RED_SUITS, SUIT_LABEL, SUIT_SYMBOL } from '@/lib/cards'
 import { cn } from '@/lib/utils'
 
@@ -12,7 +12,10 @@ interface CardProps {
   selected?: boolean
   onClick?: () => void
   size?: 'sm' | 'md'
-  dragSource?: DragSource
+  /** The row of a draggable board card. A card with a row is draggable without onClick. */
+  dragSource?: GroupKey
+  /** The card accepts a drop of another card, and shows a highlight while one is over it. */
+  dropTarget?: boolean
   highlight?: 'win' | 'lose'
 }
 
@@ -27,6 +30,7 @@ function CardComponent({
   onClick,
   size = 'md',
   dragSource,
+  dropTarget = false,
   highlight,
 }: CardProps) {
   const isRed = RED_SUITS.has(card.suit)
@@ -82,11 +86,12 @@ function CardComponent({
     </svg>
   )
 
-  if (onClick) {
+  if (onClick || dragSource) {
     return (
       <InteractiveCard
         card={card}
         dragSource={dragSource}
+        dropTarget={dropTarget}
         label={label}
         baseClass={baseClass}
         onClick={onClick}
@@ -111,30 +116,44 @@ function CardComponent({
 
 interface InteractiveCardProps {
   card: CardType
-  dragSource?: DragSource
+  dragSource?: GroupKey
+  dropTarget: boolean
   label: string
   baseClass: string
-  onClick: () => void
+  onClick?: () => void
   children: ReactNode
 }
 
 function InteractiveCard({
   card,
   dragSource,
+  dropTarget,
   label,
   baseClass,
   onClick,
   children,
 }: InteractiveCardProps) {
   const dragData: DragData | undefined = dragSource
-    ? { card, source: dragSource }
+    ? { card, row: dragSource }
     : undefined
-  const { attributes, listeners, setNodeRef, transform, isDragging }
+  const dropData: DropData = { card }
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging }
     = useDraggable({
       id: card.id,
       data: dragData,
       disabled: !dragSource,
     })
+  // The DragOverlay follows the pointer, so the source card stays in place (no transform).
+  const { setNodeRef: setDropRef, isOver, active } = useDroppable({
+    id: card.id,
+    data: dropData,
+    disabled: !dropTarget,
+  })
+  const setNodeRef = useCallback((node: HTMLElement | null) => {
+    setDragRef(node)
+    setDropRef(node)
+  }, [setDragRef, setDropRef])
+  const isDropHighlight = isOver && active?.id !== card.id
 
   return (
     <button
@@ -143,14 +162,15 @@ function InteractiveCard({
       aria-label={label}
       data-testid="playing-card"
       data-card-id={card.id}
+      data-drop-over={isDropHighlight ? 'true' : undefined}
       onClick={onClick}
-      style={{ transform: CSS.Translate.toString(transform) }}
       className={cn(
         baseClass,
         'touch-none p-0 transition focus-visible:ring-2 focus-visible:ring-ring',
         dragSource && 'cursor-grab active:cursor-grabbing',
         !isDragging && 'hover:-translate-y-0.5 hover:shadow-md',
         isDragging && 'opacity-40',
+        isDropHighlight && '-translate-y-1 ring-2 ring-emerald-500 ring-offset-2 ring-offset-background',
       )}
       {...listeners}
       {...attributes}

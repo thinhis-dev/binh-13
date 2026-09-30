@@ -38,7 +38,7 @@ apps/e2e/
 ├── helpers/
 │   ├── session.ts          # createGuestSession(page, name), register/login helpers
 │   ├── room.ts             # createRoom(page) -> code, joinRoom(page, code)
-│   ├── arrange.ts          # readHand(page), computeValidArrangement(cards), dragCardToGroup(...)
+│   ├── arrange.ts          # readBoard(page), computeValidArrangement(ids), swapByKeyboard(...), arrangeBySwaps(...)
 │   └── selectors.ts        # central locator builders (see §5)
 └── tests/
     ├── session.spec.ts
@@ -239,29 +239,38 @@ on `/room/:code/result` → result page shows three group rows + a verdict.
 
 ### 4.3 Drag-and-drop with dnd-kit
 
-dnd-kit uses pointer events, **not** HTML5 drag events — Playwright's `locator.dragTo()` /
-`page.dragAndDrop()` will not work. The `PointerSensor` has an 8px activation distance, so the
-helper must move past that before dnd-kit picks the card up:
+The game screen is a swap board: a drag of one card onto another card swaps them. The helpers
+in `apps/e2e/helpers/arrange.ts` read and change the board:
 
-```ts
-// helpers/arrange.ts
-export async function dragCardToGroup(page: Page, cardId: Card, group: 'group1' | 'group2' | 'group3') {
-  const card = cardLocator(page, cardId)              // [data-testid=playing-card][aria-label=...]
-  const slot = page.getByTestId(`group-slot-${group}`)
-  const from = await card.boundingBox()
-  const to = await slot.boundingBox()
-  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
-  await page.mouse.down()
-  await page.mouse.move(from.x + from.width / 2 + 12, from.y)   // pass the 8px activation distance
-  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 })
-  await page.mouse.up()
-  await expect(slot.locator('[data-testid=playing-card]', { hasText: ... })).toBeVisible()
-}
-```
+| Helper                          | What it does                                                                 |
+| ------------------------------- | ---------------------------------------------------------------------------- |
+| `readBoard(page)`               | Card ids of each row (`group1`, `group2`, `group3`).                         |
+| `readHandCardIds(page)`         | All 13 card ids, Back row first.                                              |
+| `swapByPointer(page, a, b)`     | Real pointer drag of card a onto card b. Waits until the two cards trade places. |
+| `swapByKeyboard(page, a, b)`    | Keyboard drag of card a onto card b. Waits until the two cards trade places. |
+| `arrangeBySwaps(page, target)`  | Swaps the wanted card into each of the 13 positions (at most 12 swaps), with `swapByKeyboard`. |
 
-Fallback if mouse-dragging proves flaky: the `KeyboardSensor` is also registered — focus the card,
-`Space` to lift, arrow keys to move between droppables, `Space` to drop. Keep the mouse version as
-primary (it matches real usage); note the keyboard path exists.
+dnd-kit uses pointer events, not HTML5 drag events. Playwright's `locator.dragTo()` and
+`page.dragAndDrop()` do not work. The `PointerSensor` has an 8px activation distance, so
+`swapByPointer` moves past that before dnd-kit picks the card up.
+
+Full arrangements use the keyboard path, because repeated pointer drags are unreliable in the
+sandboxed Chromium. After a drop, dnd-kit re-activates a pointer drag only after an unexplained
+delay of about 1 s, and no DOM condition shows when it is ready. Only the single-swap spec uses
+`swapByPointer`.
+
+`swapByKeyboard` focuses card a, presses Space, then presses arrow keys until card b is the drop
+target, and presses Space again. Two details make it deterministic:
+
+- The board's keyboard getter (`apps/web/src/lib/dndKeyboard.ts`) jumps from card to card. The
+  current drop target has `data-drop-over="true"`, so the helper waits for that attribute to move
+  after each key press.
+- dnd-kit's `KeyboardSensor` adds its keydown listener in a `setTimeout(0)` after the drag starts,
+  and Chromium can run an input event before that timer. After `aria-pressed="true"` shows, the
+  helper waits for a `setTimeout(0)` of its own in the page. Timers with the same delay run in
+  order, so the listener exists when the first arrow key arrives.
+- The board sets `scrollBehavior: 'auto'` on the keyboard sensor. If a jump scrolls the page, the
+  scroll ends before the next key press.
 
 ### 4.4 Conventions
 
@@ -271,7 +280,7 @@ primary (it matches real usage); note the keyboard path exists.
 - Assert on **URL transitions** (`await expect(page).toHaveURL(/\/room\/[A-Z0-9]{6}\/game/)`) as
   the phase-change signal — the app is page-per-phase, so URLs are the state machine.
 - Prefer role/label locators (`getByRole('button', { name: 'Submit Arrangement' })`); fall back to
-  the existing `data-testid`s (`hand-area`, `group-slot-group1..3`, `playing-card`, `empty-slot`).
+  the existing `data-testid`s (`board`, `group-row-group1..3`, `playing-card`).
 - Specs stay UI-driven: never emit socket events directly from tests — that's what integration
   tests (`.integration.test.ts`) are for. E2E goes through the DOM like a human.
 
@@ -376,20 +385,21 @@ and use unique usernames so parallel workers don't trip it for each other.
 | 6 | Ready check | p1 ready, p2 joins → seat 2 shows "Not ready" and both stay in the lobby; p2 clicks **Ready** → both navigate |
 | 7 | Manual start | p1 disables auto-start → p2 joins → no **Start Game** button → both click **Ready** → "waiting for owner"; owner clicks **Start Game** → both navigate |
 
-### 7.4 `game.spec.ts` — arrangement & submit
+### 7.4 `game.spec.ts` — swap board & submit
 
 | # | Scenario | Steps / assertions |
 |---|----------|--------------------|
-| 1 | Deal | both players see `hand-area` with 13 `playing-card`s; three empty group slots (3/5/5 capacity); Submit disabled |
-| 2 | Sort | click **Sort** → hand order changes to sorted (assert relative order via `data-card-id`) |
-| 3 | Drag to group | drag one card into Front → appears in `group-slot-group3`, hand has 12; drag back out works |
-| 4 | Submit gating | Submit stays disabled until all 13 placed (3/5/5) |
-| 5 | Full round | both players `computeValidArrangement` + drag all 13 + Submit → each sees "opponent submitted" indicator when the other submits → both auto-navigate to result |
-| 6 | Foul warning | arrange a deliberate foul (weakest 5 in Back, strongest 5 in Middle — construct from the dealt hand) → foul indicator visible / submit blocked per UI rules |
+| 1 | Deal | both players see 3 / 5 / 5 cards in the Front, Middle, and Back rows, and no hand area |
+| 2 | Pointer swap | `swapByPointer` of a Back card onto a Front card → the two cards trade places |
+| 3 | Keyboard swap | `swapByKeyboard` of a Front card onto a Back card → the two cards trade places |
+| 4 | Sort | click **Sort** → each row is sorted by rank, and no card moves to another row |
+| 5 | Sorted deal | set `binh13.dealOrder` to `sorted` before the deal → the switch is on, and the 13 cards fill the rows in sorted order |
+| 6 | Foul warning | `arrangeBySwaps` to a deliberate foul (from `computeFoulArrangement`) → foul warning visible, Submit disabled |
+| 7 | Hint | click **Hint** → the board changes to a non-foul arrangement of the same cards, and Submit is enabled |
+| 8 | Full round | both players `arrangeBySwaps` to `computeValidArrangement` + Submit → each sees "opponent submitted" when the other submits → both auto-navigate to result |
 
-(5) is the crown-jewel test and the slowest (~26 drags across two pages). Keep exactly one such
-full-round test; every other spec that needs a finished round should reuse it as a helper
-(`playFullRound(p1, p2)`), not re-derive it.
+(8) is the slowest test. Keep exactly one such full-round test. Every other spec that needs a
+finished round reuses the helper `playFullRound(p1, p2)`.
 
 ### 7.5 `surrender.spec.ts`
 
@@ -403,7 +413,7 @@ full-round test; every other spec that needs a finished round should reuse it as
 
 | # | Scenario | Steps / assertions |
 |---|----------|--------------------|
-| 1 | Result contents | after `playFullRound` → both on `/room/{code}/result`; three group rows visible for both players; per-group win/loss markers + overall verdict rendered (don't assert *who* won) |
+| 1 | Reveal and Skip | after `playFullRound` → both on `/room/{code}/result`. The rows reveal one by one, and no verdict shows yet. Click **Skip** → three group rows with win/loss markers and the overall verdict show (who won is not asserted). An instant-win deal shows everything at once, so the spec clicks Skip only when it shows. |
 | 2 | Rematch happy path | p1 **Rematch** → p2 sees incoming request → p2 accepts → both auto-navigate back to `/room/{code}/game` with fresh 13-card hands |
 | 3 | Rematch declined | p1 requests → p2 declines → p1 sees declined/cancelled reason |
 | 4 | Leave from result | p2 leaves → back on Home; p1 sees rematch cancelled/opponent-left state |

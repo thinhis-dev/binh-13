@@ -21,10 +21,11 @@ Cards within each group are sorted by rank descending (Ace highest), then by sui
 
 ```
 Result (page)
-├── Banner (win/lose/draw)
-├── Score Summary
+├── Reveal notice + Skip button (during the reveal only)
+├── Banner (win/lose/draw, instant-win kind), after the last reveal step
+├── Score Summary (running score during the reveal)
 ├── ResultGroupDisplay (×3: Back, Middle, Front)
-│   ├── Group header (label + hand descriptions + win/lose icon)
+│   ├── Group header (label + hand descriptions + win/lose icon, or the label only before the reveal)
 │   ├── ResultCardRow (Your cards)
 │   │   └── Card (×5 or ×3, with optional highlight)
 │   └── ResultCardRow (Opponent's cards)
@@ -200,10 +201,24 @@ These classes are applied alongside (not replacing) the existing `selected` ring
 - Computes highlighted card IDs using `getHighlightedCardIds()`
 - Renders group header with icon and descriptions
 - Renders two `ResultCardRow`s (one for each player)
+- With `revealed={false}`, it shows card backs for both players and no hand names or icon
 
 ### 4.5 Result Page Integration
 
 Replace the `<div>` elements in the group breakdown `map()` with `<ResultGroupDisplay>` components. The group cards come from `result.arrangements.p1` / `result.arrangements.p2`.
+
+### 4.6 Chi-by-Chi Reveal
+
+The result page reveals the rows one at a time, as Mau Binh apps do. The hook `useRevealSteps` (`apps/web/src/hooks/useRevealSteps.ts`) runs the steps.
+
+1. At the start, every row shows card backs, the score is 0-0, and no banner shows.
+2. Every `REVEAL_STEP_MS` (5000 ms), the next row is revealed: Front, then Middle, then Back.
+3. The score counts the revealed rows. After the last step, it shows the final score from the result.
+4. The win, lose, or draw banner shows after the last step.
+
+The **Skip** button reveals every row and the banner at once. A surrender result and an instant-win result show everything at once, without a reveal. A foul result uses the reveal, and its rows show "Foul". The Rematch and Leave buttons stay available during the reveal. The hook clears its timer on unmount.
+
+For an instant-win result, the banner names the kind, for example "Dragon (Sanh rong): instant win". For the opponent's kind, it starts with "Opponent".
 
 ---
 

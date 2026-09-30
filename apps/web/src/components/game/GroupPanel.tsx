@@ -1,62 +1,23 @@
 import type { Card as CardType } from '@binh-13/shared'
 import type { GroupKey } from '@/hooks/useArrangement'
 import { memo } from 'react'
-import { GroupSlot } from '@/components/game/GroupSlot'
+import { GroupRow } from '@/components/game/GroupRow'
 
 interface GroupPanelProps {
   group1: CardType[]
   group2: CardType[]
   group3: CardType[]
-  selectedCardId: string | null
-  onSlotClick: (groupKey: GroupKey) => void
-  onCardClick: (groupKey: GroupKey, card: CardType) => void
-  isOver?: Partial<Record<GroupKey, boolean>>
-  frontLabel?: string | null
+  labels: Record<GroupKey, string | null>
 }
 
-function GroupPanelComponent({
-  group1,
-  group2,
-  group3,
-  selectedCardId,
-  onSlotClick,
-  onCardClick,
-  isOver,
-  frontLabel,
-}: GroupPanelProps) {
+/** The board as a pyramid: Front (3) at the top, then Middle (5), then Back (5). */
+function GroupPanelComponent({ group1, group2, group3, labels }: GroupPanelProps) {
   return (
-    <aside className="flex w-full flex-col gap-3 lg:w-md">
-      <GroupSlot
-        groupKey="group1"
-        label="Back (5)"
-        capacity={5}
-        cards={group1}
-        onSlotClick={() => onSlotClick('group1')}
-        onCardClick={card => onCardClick('group1', card)}
-        isActive={Boolean(selectedCardId) && group1.length < 5}
-        isOver={isOver?.group1}
-      />
-      <GroupSlot
-        groupKey="group2"
-        label="Middle (5)"
-        capacity={5}
-        cards={group2}
-        onSlotClick={() => onSlotClick('group2')}
-        onCardClick={card => onCardClick('group2', card)}
-        isActive={Boolean(selectedCardId) && group2.length < 5}
-        isOver={isOver?.group2}
-      />
-      <GroupSlot
-        groupKey="group3"
-        label={frontLabel ? `Front (3) — ${frontLabel}` : 'Front (3)'}
-        capacity={3}
-        cards={group3}
-        onSlotClick={() => onSlotClick('group3')}
-        onCardClick={card => onCardClick('group3', card)}
-        isActive={Boolean(selectedCardId) && group3.length < 3}
-        isOver={isOver?.group3}
-      />
-    </aside>
+    <div data-testid="board" className="flex flex-col items-center gap-3">
+      <GroupRow groupKey="group3" label="Front (3)" cards={group3} handName={labels.group3} />
+      <GroupRow groupKey="group2" label="Middle (5)" cards={group2} handName={labels.group2} />
+      <GroupRow groupKey="group1" label="Back (5)" cards={group1} handName={labels.group1} />
+    </div>
   )
 }
 

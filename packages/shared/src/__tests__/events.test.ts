@@ -56,4 +56,10 @@ describe('dEFAULT_ROOM_SETTINGS', () => {
       revealOnSubmit: false,
     })
   })
+
+  it('has the draft and hint events', () => {
+    expect(EVENTS.GAME_DRAFT).toBe('game:draft')
+    expect(EVENTS.GAME_HINT_REQUEST).toBe('game:hint_request')
+    expect(EVENTS.GAME_HINT).toBe('game:hint')
+  })
 })

@@ -1,3 +1,5 @@
+import type { InstantWinKind } from './instantWin'
+
 // Suit and Rank
 export type Suit = 'S' | 'H' | 'D' | 'C' // Spades, Hearts, Diamonds, Clubs
 export type Rank
@@ -21,6 +23,31 @@ export interface Card {
   id: string
   rank: Rank
   suit: Suit
+}
+
+/** The three rows of a board, as a client sends or receives them. */
+export interface BoardArrangement {
+  group1: Card[] // Back (5)
+  group2: Card[] // Middle (5)
+  group3: Card[] // Front (3)
+}
+
+/** game:draft — the latest board of a player who did not submit yet. Same shape as game:submit. */
+export interface GameDraftPayload {
+  playerId: number
+  code: string
+  arrangement: BoardArrangement
+}
+
+/** game:hint_request — asks the server for the auto-arrangement of the player's hand. */
+export interface GameHintRequestPayload {
+  playerId: number
+  code: string
+}
+
+/** game:hint — the server auto-arrangement, sent only to the player who asked. */
+export interface GameHintPayload {
+  arrangement: BoardArrangement
 }
 
 export interface PlayerStats {
@@ -181,6 +208,9 @@ export interface RoundResult {
   p2Score: number
   p1Foul: boolean
   p2Foul: boolean
+  /** The instant-win kind of each player, or null. Always null on a surrender. */
+  p1InstantWin: InstantWinKind | null
+  p2InstantWin: InstantWinKind | null
   arrangements: {
     p1: PlayerArrangement
     p2: PlayerArrangement

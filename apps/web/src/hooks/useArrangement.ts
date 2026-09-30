@@ -1,161 +1,112 @@
 import type { Card } from '@binh-13/shared'
+import type { BoardRows, DealOrder } from '@/lib/dealOrder'
 import {
+  detectInstantWin,
+  estimateFiveCardCategory,
   evaluateThreeCard,
+  FIVE_CARD_CATEGORY_NAME,
   quickFoulCheck,
   THREE_CARD_CATEGORY_NAME,
 } from '@binh-13/shared'
 import { useCallback, useMemo, useState } from 'react'
 import { sortCards } from '@/lib/cards'
+import { layoutDeal } from '@/lib/dealOrder'
 
 export type GroupKey = 'group1' | 'group2' | 'group3'
 
-export interface ArrangementState {
-  hand: Card[]
-  group1: Card[]
-  group2: Card[]
-  group3: Card[]
-  selectedCardId: string | null
-  /** Original deal order — card ids — used to restore position on return from group */
-  originalOrder: string[]
+export type ArrangementState = BoardRows
+
+export const GROUP_KEYS: GroupKey[] = ['group1', 'group2', 'group3']
+
+const ROW_SIZE: Record<GroupKey, number> = { group1: 5, group2: 5, group3: 3 }
+
+const emptyState: ArrangementState = { group1: [], group2: [], group3: [] }
+
+interface ArrangementOptions {
+  order?: DealOrder
+  showHandStrength?: boolean
 }
 
-const GROUP_CAPACITY: Record<GroupKey, 5 | 3> = {
-  group1: 5,
-  group2: 5,
-  group3: 3,
-}
-
-const emptyState: ArrangementState = {
-  hand: [],
-  group1: [],
-  group2: [],
-  group3: [],
-  selectedCardId: null,
-  originalOrder: [],
-}
-
-function buildInitialState(cards: Card[]): ArrangementState {
-  return {
-    hand: cards,
-    group1: [],
-    group2: [],
-    group3: [],
-    selectedCardId: null,
-    originalOrder: cards.map(c => c.id),
+function findCard(state: ArrangementState, cardId: string) {
+  for (const key of GROUP_KEYS) {
+    const index = state[key].findIndex(card => card.id === cardId)
+    if (index !== -1)
+      return { key, index }
   }
+  return null
 }
 
-function removeCard(cards: Card[], cardId: string) {
-  return cards.filter(card => card.id !== cardId)
+/** True when `next` holds exactly the cards of `current`, with row sizes 5 / 5 / 3. */
+function isSameCardSet(current: ArrangementState, next: BoardRows) {
+  if (GROUP_KEYS.some(key => next[key].length !== ROW_SIZE[key]))
+    return false
+  const currentIds = new Set(GROUP_KEYS.flatMap(key => current[key].map(card => card.id)))
+  const nextIds = new Set(GROUP_KEYS.flatMap(key => next[key].map(card => card.id)))
+  return nextIds.size === currentIds.size && [...nextIds].every(id => currentIds.has(id))
 }
 
-function hasCard(cards: Card[], cardId: string) {
-  return cards.some(card => card.id === cardId)
+function rowLabel(key: GroupKey, cards: Card[]) {
+  if (cards.length !== ROW_SIZE[key])
+    return null
+  if (key === 'group3')
+    return THREE_CARD_CATEGORY_NAME[evaluateThreeCard(cards).category]
+  return FIVE_CARD_CATEGORY_NAME[estimateFiveCardCategory(cards)] ?? null
 }
 
-export function useArrangement(initialCards?: Card[]) {
+export function useArrangement(initialCards?: Card[], options: ArrangementOptions = {}) {
+  const { order = 'raw', showHandStrength = true } = options
   const [state, setState] = useState<ArrangementState>(() =>
-    initialCards ? buildInitialState(initialCards) : emptyState,
+    initialCards ? layoutDeal(initialCards, order) : emptyState,
   )
 
-  const init = useCallback((cards: Card[]) => {
-    setState(buildInitialState(cards))
+  const init = useCallback((cards: Card[], dealOrder: DealOrder) => {
+    setState(layoutDeal(cards, dealOrder))
   }, [])
 
-  const selectCard = useCallback((id: string | null) => {
-    setState(current => ({ ...current, selectedCardId: id }))
-  }, [])
-
-  const assignToGroup = useCallback((groupKey: GroupKey, card: Card) => {
+  /** Swaps two cards, inside one row or across rows. A no-op keeps the same state object. */
+  const swapCards = useCallback((aId: string, bId: string) => {
     setState((current) => {
-      const group = current[groupKey]
-      if (
-        group.length >= GROUP_CAPACITY[groupKey]
-        || !hasCard(current.hand, card.id)
-      ) {
+      if (aId === bId)
         return current
-      }
+      const a = findCard(current, aId)
+      const b = findCard(current, bId)
+      if (!a || !b)
+        return current
 
-      return {
-        ...current,
-        hand: removeCard(current.hand, card.id),
-        [groupKey]: [...group, card],
-        selectedCardId: null,
-      }
+      const next = { ...current, [a.key]: [...current[a.key]] }
+      next[b.key] = [...next[b.key]]
+      const cardA = current[a.key][a.index]
+      next[a.key][a.index] = current[b.key][b.index]
+      next[b.key][b.index] = cardA
+      return next
     })
   }, [])
 
-  const removeFromGroup = useCallback((groupKey: GroupKey, card: Card) => {
-    setState((current) => {
-      const group = current[groupKey]
-      if (!hasCard(group, card.id))
-        return current
-
-      const restoredHand = [...current.hand, card].sort(
-        (a, b) =>
-          current.originalOrder.indexOf(a.id)
-          - current.originalOrder.indexOf(b.id),
-      )
-
-      return {
-        ...current,
-        hand: restoredHand,
-        [groupKey]: removeCard(group, card.id),
-        selectedCardId: null,
-      }
-    })
-  }, [])
-
-  /** Atomically move a card from one group to another without touching the hand. */
-  const moveToGroup = useCallback(
-    (fromKey: GroupKey, toKey: GroupKey, card: Card) => {
-      setState((current) => {
-        const from = current[fromKey]
-        const to = current[toKey]
-        if (!hasCard(from, card.id) || to.length >= GROUP_CAPACITY[toKey]) {
-          return current
-        }
-
-        return {
-          ...current,
-          [fromKey]: removeCard(from, card.id),
-          [toKey]: [...to, card],
-          selectedCardId: null,
-        }
-      })
-    },
-    [],
-  )
-
-  /** Sort the hand cards by rank descending then suit descending. Clears selection. */
-  const sortHand = useCallback(() => {
+  /** Sorts the cards inside each row. Cards never move between rows. */
+  const sortRows = useCallback(() => {
     setState(current => ({
-      ...current,
-      hand: sortCards(current.hand),
-      selectedCardId: null,
+      group1: sortCards(current.group1),
+      group2: sortCards(current.group2),
+      group3: sortCards(current.group3),
     }))
   }, [])
 
-  const isComplete = useMemo(
-    () =>
-      state.group1.length === GROUP_CAPACITY.group1
-      && state.group2.length === GROUP_CAPACITY.group2
-      && state.group3.length === GROUP_CAPACITY.group3,
-    [state.group1.length, state.group2.length, state.group3.length],
-  )
+  /** Replaces the board. Ignored unless it holds exactly the current 13 cards. */
+  const applyArrangement = useCallback((arrangement: BoardRows) => {
+    setState(current => isSameCardSet(current, arrangement)
+      ? {
+          group1: [...arrangement.group1],
+          group2: [...arrangement.group2],
+          group3: [...arrangement.group3],
+        }
+      : current)
+  }, [])
 
-  /** Live label for the front (3-card) group, or null if incomplete. */
-  const frontLabel = useMemo(() => {
-    if (state.group3.length !== 3)
-      return null
-    try {
-      const rank = evaluateThreeCard(state.group3)
-      return THREE_CARD_CATEGORY_NAME[rank.category]
-    }
-    catch {
-      return null
-    }
-  }, [state.group3])
+  const labels = useMemo<Record<GroupKey, string | null>>(() => ({
+    group1: showHandStrength ? rowLabel('group1', state.group1) : null,
+    group2: showHandStrength ? rowLabel('group2', state.group2) : null,
+    group3: showHandStrength ? rowLabel('group3', state.group3) : null,
+  }), [showHandStrength, state.group1, state.group2, state.group3])
 
   /**
    * True if a foul is DEFINITELY detected (group2 category > group1 category).
@@ -166,16 +117,17 @@ export function useArrangement(initialCards?: Card[]) {
     [state.group1, state.group2],
   )
 
+  /** The instant-win kind of the board, or null. An instant win overrides a foul. */
+  const instantWin = useMemo(() => detectInstantWin(state), [state])
+
   return {
     ...state,
     init,
-    selectCard,
-    assignToGroup,
-    removeFromGroup,
-    moveToGroup,
-    sortHand,
-    isComplete,
-    frontLabel,
+    swapCards,
+    sortRows,
+    applyArrangement,
+    labels,
     hasFoulWarning,
+    instantWin,
   }
 }

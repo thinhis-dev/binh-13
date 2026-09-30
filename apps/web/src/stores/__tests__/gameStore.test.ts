@@ -166,4 +166,15 @@ describe('gameStore - rematch state', () => {
     expect(useGameStore.getState().rematchOpponentRequested).toBe(false)
     expect(useGameStore.getState().rematchCancelledReason).toBeNull()
   })
+
+  it('stores a hint arrangement and clears it on reset()', () => {
+    const hint = { group1: [], group2: [], group3: [] }
+    expect(useGameStore.getState().hint).toBeNull()
+
+    useGameStore.getState().setHint(hint)
+    expect(useGameStore.getState().hint).toBe(hint)
+
+    useGameStore.getState().reset()
+    expect(useGameStore.getState().hint).toBeNull()
+  })
 })

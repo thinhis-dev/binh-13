@@ -15,32 +15,47 @@ export function roundResult(page: Page) {
   return page.getByTestId('round-result')
 }
 
-export function handArea(page: Page) {
-  return page.getByTestId('hand-area')
+/** Skips the row-by-row reveal on the result page. */
+export function skipRevealButton(page: Page) {
+  return page.getByRole('button', { name: 'Skip', exact: true })
 }
 
-export function handCards(page: Page) {
-  return handArea(page).locator('[data-card-id]')
+/** The swap board: Front, Middle, and Back rows. */
+export function board(page: Page) {
+  return page.getByTestId('board')
 }
 
-export function cardInHand(page: Page, cardId: string) {
-  return handArea(page).locator(`[data-card-id="${cardId}"]`)
+export function boardCards(page: Page) {
+  return board(page).locator('[data-card-id]')
+}
+
+export function cardOnBoard(page: Page, cardId: string) {
+  return board(page).locator(`[data-card-id="${cardId}"]`)
+}
+
+export function groupRow(page: Page, key: GroupKey) {
+  return page.getByTestId(`group-row-${key}`)
+}
+
+export function rowCards(page: Page, key: GroupKey) {
+  return groupRow(page, key).locator('[data-card-id]')
+}
+
+/** The card that the dragged card is over during a drag. */
+export function dropTarget(page: Page) {
+  return board(page).locator('[data-drop-over="true"]')
 }
 
 export function sortButton(page: Page) {
-  return handArea(page).getByRole('button', { name: 'Sort' })
+  return page.getByRole('button', { name: 'Sort', exact: true })
 }
 
-export function groupSlot(page: Page, key: GroupKey) {
-  return page.getByTestId(`group-slot-${key}`)
+export function hintButton(page: Page) {
+  return page.getByRole('button', { name: 'Hint', exact: true })
 }
 
-export function emptySlotIn(page: Page, key: GroupKey) {
-  return groupSlot(page, key).getByTestId('empty-slot')
-}
-
-export function cardInGroup(page: Page, key: GroupKey, cardId: string) {
-  return groupSlot(page, key).locator(`[data-card-id="${cardId}"]`)
+export function sortedDealSwitch(page: Page) {
+  return page.getByRole('switch', { name: 'Sorted deal' })
 }
 
 export function submitArrangementButton(page: Page) {

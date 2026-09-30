@@ -1,5 +1,5 @@
 import { expect, test } from '../fixtures/players'
-import { assignArrangementByClick, computeValidArrangement, readHandCardIds, submitArrangement } from '../helpers/arrange'
+import { arrangeBySwaps, computeValidArrangement, readHandCardIds, submitArrangement } from '../helpers/arrange'
 import { startGameForBoth } from '../helpers/room'
 import { surrenderDialog, surrenderTriggerButton } from '../helpers/selectors'
 
@@ -32,7 +32,7 @@ test.describe('surrender', () => {
     await startGameForBoth(p1, p2)
 
     const arrangement = computeValidArrangement(await readHandCardIds(p1))
-    await assignArrangementByClick(p1, arrangement)
+    await arrangeBySwaps(p1, arrangement)
     await submitArrangement(p1)
 
     await expect(surrenderTriggerButton(p1)).toBeDisabled()

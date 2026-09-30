@@ -1,9 +1,10 @@
 import type { Card, PlayerArrangement, RoundResult } from '@binh-13/shared'
 import { EVENTS } from '@binh-13/shared'
-import { render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { REVEAL_STEP_MS } from '@/hooks/useRevealSteps'
 import { socket } from '@/lib/socket'
 import { useGameStore } from '@/stores/gameStore'
 import { useSessionStore } from '@/stores/sessionStore'
@@ -63,6 +64,8 @@ function makeResult(overrides: Partial<RoundResult> = {}): RoundResult {
     p2Score: 1,
     p1Foul: false,
     p2Foul: false,
+    p1InstantWin: null,
+    p2InstantWin: null,
     arrangements: {
       p1: {
         playerId: 1,
@@ -81,7 +84,16 @@ function makeResult(overrides: Partial<RoundResult> = {}): RoundResult {
   }
 }
 
-function renderResult(initialPath = '/room/ABCDEF/result') {
+/** Renders the result page. Unless `reveal` is true, it clicks Skip so that every row shows. */
+function renderResult(initialPath = '/room/ABCDEF/result', { reveal = false } = {}) {
+  const view = renderPage(initialPath)
+  const skipButton = screen.queryByRole('button', { name: 'Skip' })
+  if (!reveal && skipButton)
+    fireEvent.click(skipButton)
+  return view
+}
+
+function renderPage(initialPath: string) {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
       <Routes>
@@ -148,6 +160,21 @@ describe('result page', () => {
       .setResult(makeResult({ p2Foul: true, winner: 'p1' }))
     renderResult()
     expect(screen.getByText(/Opponent fouled/)).toBeInTheDocument()
+  })
+
+  it('names my instant-win kind in the banner', () => {
+    useGameStore.getState().setResult(makeResult({ winner: 'p1', p1Score: 3, p2Score: 0, p1InstantWin: 'dragon' }))
+    renderResult()
+
+    expect(screen.getByText('You Win! 🎉')).toBeInTheDocument()
+    expect(screen.getByText('Dragon (Sanh rong): instant win')).toBeInTheDocument()
+  })
+
+  it('names the opponent instant-win kind in the banner', () => {
+    useGameStore.getState().setResult(makeResult({ winner: 'p2', p1Score: 0, p2Score: 3, p2InstantWin: 'six_pairs' }))
+    renderResult()
+
+    expect(screen.getByText('Opponent Six pairs (Luc phe bon): instant win')).toBeInTheDocument()
   })
 
   it('shows correct scores for the current player', () => {
@@ -492,6 +519,126 @@ describe('result page', () => {
     renderResult()
     expect(screen.getByRole('button', { name: 'Rematch' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Leave' })).toBeInTheDocument()
+  })
+})
+
+describe('result page - chi-by-chi reveal', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    useSessionStore.getState().setSession(1, 'Alice')
+    useSessionStore.getState().setRoom('ABCDEF')
+    useGameStore.getState().reset()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    useSessionStore.getState().clearSession()
+    useGameStore.getState().reset()
+  })
+
+  function scores() {
+    return [screen.getByTestId('my-score').textContent, screen.getByTestId('opponent-score').textContent]
+  }
+
+  function section(label: string) {
+    return screen.getByText(label).closest('section') as HTMLElement
+  }
+
+  it('starts with every row face down and no banner', () => {
+    useGameStore.getState().setResult(makeResult())
+    renderResult(undefined, { reveal: true })
+
+    expect(screen.getAllByTestId('card-back')).toHaveLength(26)
+    expect(screen.queryByText(/You Win/)).toBeNull()
+    expect(scores()).toEqual(['0', '0'])
+    expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument()
+  })
+
+  it('reveals Front, then Middle, then Back, updates the score, and shows the banner last', () => {
+    // makeResult: Back won by p1, Middle won by p2, Front won by p1. Alice is p1.
+    useGameStore.getState().setResult(makeResult())
+    renderResult(undefined, { reveal: true })
+
+    act(() => vi.advanceTimersByTime(REVEAL_STEP_MS))
+    expect(within(section('Front (3)')).queryByTestId('card-back')).toBeNull()
+    expect(within(section('Middle (5)')).getAllByTestId('card-back')).toHaveLength(10)
+    expect(scores()).toEqual(['1', '0'])
+
+    act(() => vi.advanceTimersByTime(REVEAL_STEP_MS))
+    expect(within(section('Middle (5)')).queryByTestId('card-back')).toBeNull()
+    expect(within(section('Back (5)')).getAllByTestId('card-back')).toHaveLength(10)
+    expect(scores()).toEqual(['1', '1'])
+    expect(screen.queryByText(/You Win/)).toBeNull()
+
+    act(() => vi.advanceTimersByTime(REVEAL_STEP_MS))
+    expect(screen.queryByTestId('card-back')).toBeNull()
+    expect(scores()).toEqual(['2', '1'])
+    expect(screen.getByText(/You Win/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Skip' })).toBeNull()
+  })
+
+  it('skip reveals every row and the banner at once', () => {
+    useGameStore.getState().setResult(makeResult())
+    renderResult(undefined, { reveal: true })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }))
+
+    expect(screen.queryByTestId('card-back')).toBeNull()
+    expect(screen.getByText(/You Win/)).toBeInTheDocument()
+  })
+
+  it('shows a surrender result at once', () => {
+    useGameStore.getState().setResult(makeResult({ winner: 'p2', surrendered: true, surrenderedBy: 1 }))
+    renderResult(undefined, { reveal: true })
+
+    expect(screen.getByText('You Surrendered')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Skip' })).toBeNull()
+  })
+
+  it('shows an instant-win result at once', () => {
+    useGameStore.getState().setResult(makeResult({ winner: 'p1', p1Score: 3, p2Score: 0, p1InstantWin: 'dragon' }))
+    renderResult(undefined, { reveal: true })
+
+    expect(screen.getByText(/You Win/)).toBeInTheDocument()
+    expect(screen.queryByTestId('card-back')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Skip' })).toBeNull()
+  })
+
+  it('uses the reveal for a foul result, and the foul rows show "Foul"', () => {
+    const foulGroup = { result: 'p2', p1Hand: 'Foul', p2Hand: 'Flush', p1Foul: true, p2Foul: false } as const
+    useGameStore.getState().setResult(makeResult({
+      winner: 'p2',
+      p1Foul: true,
+      p1Score: 0,
+      p2Score: 3,
+      group1: foulGroup,
+      group2: foulGroup,
+      group3: foulGroup,
+    }))
+    renderResult(undefined, { reveal: true })
+
+    expect(screen.getAllByTestId('card-back')).toHaveLength(26)
+    act(() => vi.advanceTimersByTime(REVEAL_STEP_MS))
+    expect(within(section('Front (3)')).getByText('Foul')).toBeInTheDocument()
+  })
+
+  it('keeps the Rematch and Leave buttons during the reveal', () => {
+    useGameStore.getState().setResult(makeResult())
+    renderResult(undefined, { reveal: true })
+
+    expect(screen.getByRole('button', { name: 'Rematch' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Leave' })).toBeInTheDocument()
+  })
+
+  it('runs no reveal timer after unmount', () => {
+    useGameStore.getState().setResult(makeResult())
+    const { unmount } = renderResult(undefined, { reveal: true })
+    // Other code (the router, the socket hook) can hold timers too, so compare counts.
+    const whileMounted = vi.getTimerCount()
+
+    unmount()
+
+    expect(vi.getTimerCount()).toBe(whileMounted - 1)
   })
 })
 

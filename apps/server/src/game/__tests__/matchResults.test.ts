@@ -18,6 +18,8 @@ function makeResult(overrides: Partial<RoundResult> = {}): RoundResult {
     p2Score: 0,
     p1Foul: false,
     p2Foul: false,
+    p1InstantWin: null,
+    p2InstantWin: null,
     arrangements: { p1: DUMMY_ARRANGEMENT, p2: DUMMY_ARRANGEMENT },
     ...overrides,
   }
@@ -112,6 +114,13 @@ describe('matchResults', () => {
       fouls: 1,
       sweeps: 1,
     })
+  })
+
+  it('counts an instant win as a sweep, through its 3-0 score', () => {
+    recordRoundResult('ROOM', 1, makeResult({ winner: 'p1', p1Score: 3, p2Score: 0, p1InstantWin: 'dragon' }), p1Id, p2Id)
+
+    expect(getPlayerStats(p1Id).sweeps).toBe(1)
+    expect(getPlayerStats(p2Id).losses).toBe(1)
   })
 
   it('returns all zeros for a player with no recorded rounds', () => {
